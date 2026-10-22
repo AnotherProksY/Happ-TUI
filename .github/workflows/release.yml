@@ -49,8 +49,8 @@ jobs:
 
       - name: Check v2parser is static
         run: |
-          file dist/build/happ-tui-*/lib/happ-tui/v2parser
-          file dist/build/happ-tui-*/lib/happ-tui/v2parser | grep -Eq "statically linked|static-pie linked"
+          file dist/build/happ-tui-*/libexec/happ-tui/v2parser
+          file dist/build/happ-tui-*/libexec/happ-tui/v2parser | grep -Eq "statically linked|static-pie linked"
 
       - uses: actions/upload-artifact@v7
         with:
