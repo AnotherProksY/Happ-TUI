@@ -3,6 +3,7 @@ package mainproxy
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"os/exec"
@@ -131,6 +132,10 @@ func queryOutboundTraffic(ctx context.Context, apiPort int, proxyTags []string) 
 	}
 	output, err := cmd.Output()
 	if err != nil {
+		var exit_err *exec.ExitError
+		if errors.As(err, &exit_err) && len(exit_err.Stderr) > 0 {
+			return 0, 0, fmt.Errorf("xray api statsquery: %w: %s", err, strings.TrimSpace(string(exit_err.Stderr)))
+		}
 		return 0, 0, fmt.Errorf("xray api statsquery: %w", err)
 	}
 	return sumOutboundTraffic(output, proxyTags)

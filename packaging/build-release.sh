@@ -21,7 +21,7 @@ ROOT=$(cd "$(dirname "$0")/.." && pwd)
 NAME=happ-tui-$VERSION
 WORK=$ROOT/dist/build
 STAGE=$WORK/$NAME
-LIB=$STAGE/lib/happ-tui
+LIB=$STAGE/libexec/happ-tui
 
 rm -rf "$STAGE"
 mkdir -p "$STAGE/bin" "$LIB" "$STAGE/share/licenses/happ-tui"

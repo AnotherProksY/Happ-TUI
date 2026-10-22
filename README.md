@@ -12,7 +12,7 @@ tar -xzf happ-tui-<version>-linux-x86_64.tar.gz
 cd happ-tui-<version>
 sudo ./install.sh
 ```
-This puts `happ-tui` into `/usr/local/bin` and its core, `xray`, `v2parser` and the geo files into `/usr/local/lib/happ-tui`, and creates the system user `happ-tui-xray` (see [TUN mode](#tun-mode)). Set `PREFIX` to install elsewhere, e.g. `sudo PREFIX=/opt/happ-tui ./install.sh`. On Fedora Atomic and other image based systems `/usr/local` is writable, so no layering or reboot is needed.
+This puts `happ-tui` into `/usr/local/bin` and its core, `xray`, `v2parser` and the geo files into `/usr/local/libexec/happ-tui`, and creates the system user `happ-tui-xray` (see [TUN mode](#tun-mode)). Set `PREFIX` to install elsewhere, e.g. `sudo PREFIX=/opt/happ-tui ./install.sh`. On Fedora Atomic and other image based systems `/usr/local` is writable, so no layering or reboot is needed.
 
 To run the core as a [system service](#system-service), so TUN mode and the [CLI](#cli) work without `sudo`:
 ```
@@ -20,7 +20,7 @@ sudo ./install.sh --service            # for the user running sudo
 sudo ./install.sh --service --user NAME
 ```
 
-To remove it: `sudo /usr/local/lib/happ-tui/uninstall.sh`. Your config and groups are kept; `--purge` also deletes the service's copy in `/etc/happ-tui` and `/var/lib/happ-tui`.
+To remove it: `sudo /usr/local/libexec/happ-tui/uninstall.sh`. Your config and groups are kept; `--purge` also deletes the service's copy in `/etc/happ-tui` and `/var/lib/happ-tui`.
 
 ### How to use
 ```
@@ -73,6 +73,7 @@ With `install.sh --service` the core runs as root in `happ-tui-core.service` for
 - Groups, subscriptions and connections are managed from `happ-tui` or the CLI as usual. Ports and DNS are changed with `sudo $EDITOR /etc/happ-tui/config.json` and `sudo systemctl restart happ-tui-core`.
 - Only root and that user may use the control socket `/run/happ-tui/core.sock` (checked with `SO_PEERCRED`). `happ-tui die` is refused; stop it with `sudo systemctl stop happ-tui-core`.
 - If the core stops or crashes with TUN on, `ExecStopPost` removes the TUN rules, so the network doesn't stay pointed at a dead port.
+- With SELinux (Fedora) the service runs as `unconfined_service_t` because the core is installed in `libexec` (label `usr_t`). From a `lib_t` path systemd would run it as `init_t`, which may neither connect out nor run `nft`.
 
 ### Files
 | What | Where |

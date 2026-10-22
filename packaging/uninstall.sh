@@ -49,7 +49,7 @@ if pgrep -x 'happ-tui-core|bushuray-core' >/dev/null 2>&1; then
 fi
 
 rm -f "$PREFIX/bin/happ-tui"
-rm -rf "$PREFIX/lib/happ-tui" "$PREFIX/share/licenses/happ-tui" "$PREFIX/share/doc/happ-tui"
+rm -rf "$PREFIX/libexec/happ-tui" "$PREFIX/lib/happ-tui" "$PREFIX/share/licenses/happ-tui" "$PREFIX/share/doc/happ-tui"
 if id -u happ-tui-xray >/dev/null 2>&1; then
 	userdel happ-tui-xray || true
 fi

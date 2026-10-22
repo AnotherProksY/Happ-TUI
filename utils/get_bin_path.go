@@ -7,7 +7,8 @@ import (
 )
 
 // GetBinPath looks for a helper binary next to the running executable, in
-// ../lib/happ-tui (the installed layout), in ./ and ./bin (a source checkout)
+// ../libexec/happ-tui (the installed layout; ../lib/happ-tui before v0.4), in
+// ./ and ./bin (a source checkout)
 // and in /usr/bin and /usr/local/bin.
 func GetBinPath(name string) (string, error) {
 	paths := []string{}
@@ -16,6 +17,7 @@ func GetBinPath(name string) (string, error) {
 			dir := filepath.Dir(exe)
 			paths = append(paths,
 				filepath.Join(dir, name),
+				filepath.Join(dir, "..", "libexec", "happ-tui", name),
 				filepath.Join(dir, "..", "lib", "happ-tui", name),
 			)
 		}

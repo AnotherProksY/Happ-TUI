@@ -1,4 +1,7 @@
 # Installed by `install.sh --service`; @LIBDIR@ and @USER@ are filled in.
+# The core lives in libexec on purpose: with SELinux, systemd runs a service
+# from a usr_t/bin_t file as unconfined_service_t, but one from lib_t as
+# init_t, which may not connect out or run nft.
 [Unit]
 Description=Happ-TUI core (Xray client back-end)
 Documentation=https://github.com/AnotherProksY/Happ-TUI

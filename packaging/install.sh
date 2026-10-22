@@ -10,7 +10,9 @@ set -eu
 
 PREFIX=${PREFIX:-/usr/local}
 HERE=$(cd "$(dirname "$0")" && pwd)
-LIBDIR=$PREFIX/lib/happ-tui
+LIBDIR=$PREFIX/libexec/happ-tui
+# where v0.3 and earlier put the core
+OLD_LIBDIR=$PREFIX/lib/happ-tui
 UNIT=/etc/systemd/system/happ-tui-core.service
 SERVICE=no
 SERVICE_USER=${SUDO_USER:-}
@@ -73,9 +75,15 @@ fi
 
 install -Dm755 "$HERE/bin/happ-tui" "$PREFIX/bin/happ-tui"
 install -d "$LIBDIR"
-install -m755 "$HERE/lib/happ-tui/happ-tui-core" "$HERE/lib/happ-tui/xray" "$HERE/lib/happ-tui/v2parser" "$LIBDIR/"
-install -m644 "$HERE/lib/happ-tui/geoip.dat" "$HERE/lib/happ-tui/geosite.dat" "$HERE/lib/happ-tui/happ-tui-core.service" "$LIBDIR/"
+install -m755 "$HERE/libexec/happ-tui/happ-tui-core" "$HERE/libexec/happ-tui/xray" "$HERE/libexec/happ-tui/v2parser" "$LIBDIR/"
+install -m644 "$HERE/libexec/happ-tui/geoip.dat" "$HERE/libexec/happ-tui/geosite.dat" "$HERE/libexec/happ-tui/happ-tui-core.service" "$LIBDIR/"
 install -m755 "$HERE/uninstall.sh" "$LIBDIR/uninstall.sh"
+rm -rf "$OLD_LIBDIR"
+# files keep the labels of where they were unpacked if they were moved; the
+# service must run from usr_t, see happ-tui-core.service
+if command -v restorecon >/dev/null 2>&1; then
+	restorecon -RF "$LIBDIR" "$PREFIX/bin/happ-tui" 2>/dev/null || true
+fi
 install -d "$PREFIX/share/licenses/happ-tui" "$PREFIX/share/doc/happ-tui"
 install -m644 "$HERE"/share/licenses/happ-tui/* "$PREFIX/share/licenses/happ-tui/"
 install -m644 "$HERE/README.md" "$PREFIX/share/doc/happ-tui/README.md"
