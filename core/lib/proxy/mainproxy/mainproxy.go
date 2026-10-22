@@ -6,12 +6,11 @@ import (
 	"sync"
 	"sync/atomic"
 
-	portpool "bushuray-core/lib/PortPool"
-	"bushuray-core/lib/config"
-	"bushuray-core/lib/proxy/builder"
-	"bushuray-core/lib/proxy/xray"
-	"bushuray-core/structs"
-	"bushuray-core/utils"
+	portpool "github.com/AnotherProksY/Happ-TUI/core/lib/PortPool"
+	"github.com/AnotherProksY/Happ-TUI/core/lib/config"
+	"github.com/AnotherProksY/Happ-TUI/core/lib/proxy/builder"
+	"github.com/AnotherProksY/Happ-TUI/core/lib/proxy/xray"
+	"github.com/AnotherProksY/Happ-TUI/core/structs"
 )
 
 type ProxyManager struct {
@@ -91,8 +90,8 @@ func (p *ProxyManager) Connect(profile structs.Profile, tun_mode bool) error {
 		tproxy_port = 13345
 	}
 
-	xrayCoreConfig, err := utils.ParseUri(
-		profile.Uri,
+	xrayCoreConfig, err := builder.ProfileConfig(
+		profile,
 		p.appConfig.SocksPort,
 		p.appConfig.HttpPort,
 		tproxy_port,
@@ -101,9 +100,14 @@ func (p *ProxyManager) Connect(profile structs.Profile, tun_mode bool) error {
 		return err
 	}
 
+	// Full Xray configs from a JSON subscription bring the provider's own dns
+	// and routing, which are kept as they are, like Happ does.
+	isXrayJSON := builder.IsXrayJSON(profile.Uri)
 	builder := builder.NewBuilder(xrayCoreConfig)
-	if err := builder.ApplyDNS(p.appConfig.Dns); err != nil {
-		return err
+	if !isXrayJSON {
+		if err := builder.ApplyDNS(p.appConfig.Dns); err != nil {
+			return err
+		}
 	}
 	xrayConfig := builder.Build()
 
@@ -117,7 +121,10 @@ func (p *ProxyManager) Connect(profile structs.Profile, tun_mode bool) error {
 			return err
 		}
 		log.Println("TUN Xray process started; configuring policy routing")
-		err = p.enableTun()
+		// JSON profiles bring the provider's dns, which handles DNS in TUN
+		// mode like Happ does; share links follow the dns setting
+		hijackDNS := isXrayJSON || p.appConfig.Dns.Mode != config.DNSModeSystem
+		err = p.enableTun(hijackDNS)
 		if err != nil {
 			p.xray_core.Stop()
 			return fmt.Errorf("enable TUN mode: %w", err)

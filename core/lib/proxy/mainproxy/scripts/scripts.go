@@ -1,6 +1,7 @@
 package tunscripts
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 )
@@ -148,10 +149,12 @@ sysctl -w net.ipv4.conf.default.rp_filter=2
 
 func CleanUp() error {
 	RemoveBxrayUser()
+	nftErr := RemoveNftRules()
+	// iptables rules are only left by the fallback path or older versions;
+	// iptables may be missing, so its absence is not an error here
 	script := `
 set -e
 
-iptables -t mangle -S >/dev/null
 ip rule show >/dev/null
 
 delete_all_matches() {
@@ -183,5 +186,5 @@ while ip rule del fwmark 127 table 102 >/dev/null 2>&1; do
 done
 `
 	_, err := runScriptWithSh(script)
-	return err
+	return errors.Join(nftErr, err)
 }

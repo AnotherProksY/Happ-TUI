@@ -1,24 +1,27 @@
 package config
 
 import (
-	"bushuray-core/utils"
 	"encoding/json"
 	"fmt"
+	"github.com/AnotherProksY/Happ-TUI/core/utils"
 	"os"
 	"path/filepath"
 )
 
 type AppConfig struct {
-	SocksPort             int       `json:"socks-port"`
-	HttpPort              int       `json:"http-port"`
-	CoreTCPPort           int       `json:"core-tcp-port"`
-	TestPortRange         PortRange `json:"test-port-range"`
-	TestURL               string    `json:"test-url"`
-	SubscriptionUserAgent string    `json:"subscription-user-agent"`
-	NoBackground          bool      `json:"no-background,omitzero"`
-	AutoConnectOnStart    bool      `json:"auto-connect-on-start,omitzero"`
-	RemoveFailedProfiles  bool      `json:"remove-failed-profiles,omitzero"`
-	Dns                   DNSConfig `json:"dns"`
+	SocksPort             int                `json:"socks-port"`
+	HttpPort              int                `json:"http-port"`
+	CoreTCPPort           int                `json:"core-tcp-port"`
+	TestPortRange         PortRange          `json:"test-port-range"`
+	TestURL               string             `json:"test-url"`
+	SubscriptionUserAgent string             `json:"subscription-user-agent"`
+	SubscriptionClient    SubscriptionClient `json:"subscription-client"`
+	HWID                  string             `json:"hwid"`
+	SubscriptionHeaders   map[string]string  `json:"subscription-headers"`
+	NoBackground          bool               `json:"no-background,omitzero"`
+	AutoConnectOnStart    bool               `json:"auto-connect-on-start,omitzero"`
+	RemoveFailedProfiles  bool               `json:"remove-failed-profiles,omitzero"`
+	Dns                   DNSConfig          `json:"dns"`
 }
 
 type PortRange struct {
@@ -31,6 +34,16 @@ type DNSConfig struct {
 	QueryStrategy DNSQueryStrategy `json:"query-strategy"`
 	Mode          DNSMode          `json:"mode"`
 }
+
+// SubscriptionClient selects which client the subscription request imitates.
+type SubscriptionClient string
+
+const (
+	// SubscriptionClientHapp sends the same device headers as the Happ app.
+	SubscriptionClientHapp SubscriptionClient = "happ"
+	// SubscriptionClientPlain sends only the optional user-agent.
+	SubscriptionClientPlain SubscriptionClient = "plain"
+)
 
 type DNSQueryStrategy string
 
@@ -70,6 +83,9 @@ func defaultAppConfig() AppConfig {
 		AutoConnectOnStart:    false,
 		RemoveFailedProfiles:  false,
 		SubscriptionUserAgent: "",
+		SubscriptionClient:    SubscriptionClientHapp,
+		HWID:                  "",
+		SubscriptionHeaders:   map[string]string{},
 		TestURL:               "https://cp.cloudflare.com",
 		Dns: DNSConfig{
 			Servers:       []string{"localhost"},
@@ -81,11 +97,10 @@ func defaultAppConfig() AppConfig {
 
 func LoadAppConfig() (AppConfig, error) {
 	currentConfig := defaultAppConfig()
-	homeDir, err := utils.GetHomeDir()
+	dirPath, err := utils.ConfigDir()
 	if err != nil {
 		return currentConfig, err
 	}
-	dirPath := filepath.Join(homeDir, ".config", "bushuray")
 	configPath := filepath.Join(dirPath, "config.json")
 	fileBytes, err := os.ReadFile(configPath)
 	if err == nil {
@@ -99,7 +114,7 @@ func LoadAppConfig() (AppConfig, error) {
 		return currentConfig, fmt.Errorf("failed to read config file: %w", err)
 	}
 
-	if err := os.MkdirAll(dirPath, 0o755); err != nil {
+	if err := utils.EnsureDir(dirPath); err != nil {
 		return currentConfig, fmt.Errorf("create config directory %q: %w", dirPath, err)
 	}
 
@@ -111,6 +126,7 @@ func LoadAppConfig() (AppConfig, error) {
 	if err := os.WriteFile(configPath, defaultConfigJSON, 0o644); err != nil {
 		return currentConfig, fmt.Errorf("write default config %q: %w", configPath, err)
 	}
+	utils.ChownToInvokingUser(configPath)
 
 	return currentConfig, nil
 }

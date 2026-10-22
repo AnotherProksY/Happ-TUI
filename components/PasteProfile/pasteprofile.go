@@ -1,10 +1,10 @@
 package pasteprofile
 
 import (
-	cmds "github.com/Keivan-sf/Bushuray-tui/commands"
-	"github.com/Keivan-sf/Bushuray-tui/components/shared"
-	"github.com/Keivan-sf/Bushuray-tui/global"
-	servercmds "github.com/Keivan-sf/Bushuray-tui/lib/ServerCommands"
+	cmds "github.com/AnotherProksY/Happ-TUI/commands"
+	"github.com/AnotherProksY/Happ-TUI/components/shared"
+	"github.com/AnotherProksY/Happ-TUI/global"
+	servercmds "github.com/AnotherProksY/Happ-TUI/lib/ServerCommands"
 
 	"github.com/charmbracelet/bubbles/cursor"
 	"github.com/charmbracelet/bubbles/textinput"

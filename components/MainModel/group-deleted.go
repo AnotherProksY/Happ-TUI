@@ -1,7 +1,7 @@
 package mainmodel
 
 import (
-	sharedtypes "github.com/Keivan-sf/Bushuray-tui/shared_types"
+	sharedtypes "github.com/AnotherProksY/Happ-TUI/shared_types"
 
 	tea "github.com/charmbracelet/bubbletea"
 )

@@ -1,14 +1,14 @@
 package tabs
 
 import (
-	"github.com/Keivan-sf/Bushuray-tui/global"
+	"github.com/AnotherProksY/Happ-TUI/global"
 
 	"github.com/charmbracelet/lipgloss"
 )
 
 func (m Model) renderAppTitle() string {
-	title := "Bushuray-tui"
-	version := "v0.2.3"
+	title := "Happ-TUI"
+	version := global.Version
 	title_text := lipgloss.NewStyle().Foreground(lipgloss.Color("#f5c2e7")).Background(global.GetBgColor()).Render(title)
 	separtor := lipgloss.NewStyle().Foreground(lipgloss.Color("#7287fd")).Background(global.GetBgColor()).Render(" • ")
 	version_text := lipgloss.NewStyle().Foreground(lipgloss.Color("#7287fd")).Background(global.GetBgColor()).Render(version)

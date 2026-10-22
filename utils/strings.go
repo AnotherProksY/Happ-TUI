@@ -26,6 +26,10 @@ func isAllowedCharacter(r rune) bool {
 		(r >= 0xFE70 && r <= 0xFEFF) { // Arabic Presentation Forms-B
 		return true
 	}
+	// Cyrillic characters
+	if r >= 0x0400 && r <= 0x052F { // Cyrillic and Cyrillic Supplement
+		return true
+	}
 
 	//U+1F300 - U+1F5FF misc
 	//U+1F680 - U+1F6FF transport and map symbols

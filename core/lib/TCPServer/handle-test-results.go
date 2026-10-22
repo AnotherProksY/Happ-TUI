@@ -1,8 +1,8 @@
 package TCPServer
 
 import (
-	"bushuray-core/lib"
-	"bushuray-core/structs"
+	"github.com/AnotherProksY/Happ-TUI/core/lib"
+	"github.com/AnotherProksY/Happ-TUI/core/structs"
 	"log"
 )
 

@@ -1,9 +1,9 @@
 package mainmodel
 
 import (
-	list "github.com/Keivan-sf/Bushuray-tui/components/List"
-	tabs "github.com/Keivan-sf/Bushuray-tui/components/Tabs"
-	sharedtypes "github.com/Keivan-sf/Bushuray-tui/shared_types"
+	list "github.com/AnotherProksY/Happ-TUI/components/List"
+	tabs "github.com/AnotherProksY/Happ-TUI/components/Tabs"
+	sharedtypes "github.com/AnotherProksY/Happ-TUI/shared_types"
 
 	tea "github.com/charmbracelet/bubbletea"
 	zone "github.com/lrstanley/bubblezone"

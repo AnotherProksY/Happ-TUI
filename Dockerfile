@@ -9,8 +9,8 @@ WORKDIR /src
 # Copy your source code
 COPY . .
 
-# Build binary
-RUN go build -o bushuray
+# Build binaries
+RUN go build -o happ-tui && cd core && go build -o ../happ-tui-core .
 
 # Default command: show binary info
-CMD ["file", "./bushuray"]
+CMD ["file", "./happ-tui", "./happ-tui-core"]

@@ -1,6 +1,13 @@
-bushuray-core
-Bushuray-tui
-*debug*.log
+# build outputs
+/happ-tui
+/happ-tui-core
+/dist/
+/bin/
 result
-bin
-Dockerfileiran
+
+# logs of a source checkout run
+*debug*.log
+
+# from before the rename
+/bushuray
+/bushuray-core

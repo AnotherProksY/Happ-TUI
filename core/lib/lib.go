@@ -1,13 +1,14 @@
 package lib
 
 import (
-	"bushuray-core/db"
-	"bushuray-core/structs"
-	"bushuray-core/utils"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/AnotherProksY/Happ-TUI/core/db"
+	"github.com/AnotherProksY/Happ-TUI/core/lib/subscription"
+	"github.com/AnotherProksY/Happ-TUI/core/structs"
+	"github.com/AnotherProksY/Happ-TUI/core/utils"
 	"github.com/matoous/go-nanoid/v2"
+	"log"
 	"os/exec"
 	"strings"
 	"unicode/utf8"
@@ -35,10 +36,20 @@ func AddProfiles(DB *db.DB, data structs.AddProfilesData) structs.ProfilesAdded 
 }
 
 func GetDBAddProfileDatasFromStr(str string, group_id int) []structs.DBAddProfileData {
-	str = decode64(str)
+	str = decode64(strings.TrimSpace(str))
+	if strings.HasPrefix(str, "[") || strings.HasPrefix(str, "{") {
+		profiles, err := getDBAddProfileDatasFromXrayJSON(str, group_id)
+		if err == nil {
+			return profiles
+		}
+		log.Println("failed to parse Xray JSON subscription:", err)
+	}
 	uris := strings.FieldsSeq(str)
 	var profiles []structs.DBAddProfileData
 	for uri := range uris {
+		if strings.HasPrefix(uri, "#") || strings.HasPrefix(uri, "happ://") {
+			continue
+		}
 		profile, err := getDBAddProfileDataFromURI(uri, group_id)
 		if err != nil {
 			continue
@@ -78,12 +89,12 @@ func getDBAddProfileDataFromURI(uri string, group_id int) (structs.DBAddProfileD
 }
 
 func decode64(str string) string {
-	decoded, err := base64.StdEncoding.DecodeString(str)
-	if err != nil {
+	decoded, ok := subscription.DecodeBase64(str)
+	if !ok {
 		return str
 	}
-	if utf8.Valid(decoded) {
-		return string(decoded)
+	if utf8.ValidString(decoded) {
+		return decoded
 	}
 	return str
 }

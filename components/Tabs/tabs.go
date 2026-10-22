@@ -4,11 +4,11 @@ import (
 	"strconv"
 	"time"
 
-	cmds "github.com/Keivan-sf/Bushuray-tui/commands"
-	"github.com/Keivan-sf/Bushuray-tui/global"
-	notif_publisher "github.com/Keivan-sf/Bushuray-tui/lib/NotifPublisher"
-	servercmds "github.com/Keivan-sf/Bushuray-tui/lib/ServerCommands"
-	sharedtypes "github.com/Keivan-sf/Bushuray-tui/shared_types"
+	cmds "github.com/AnotherProksY/Happ-TUI/commands"
+	"github.com/AnotherProksY/Happ-TUI/global"
+	notif_publisher "github.com/AnotherProksY/Happ-TUI/lib/NotifPublisher"
+	servercmds "github.com/AnotherProksY/Happ-TUI/lib/ServerCommands"
+	sharedtypes "github.com/AnotherProksY/Happ-TUI/shared_types"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"

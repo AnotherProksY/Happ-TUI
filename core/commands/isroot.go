@@ -1,8 +1,8 @@
 package cmd
 
 import (
-	"bushuray-core/structs"
-	"bushuray-core/utils"
+	"github.com/AnotherProksY/Happ-TUI/core/structs"
+	"github.com/AnotherProksY/Happ-TUI/core/utils"
 )
 
 func (cmd *Cmd) IsRoot(data structs.IsRootData) {

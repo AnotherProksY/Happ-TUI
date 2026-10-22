@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/Keivan-sf/Bushuray-tui/global"
-	"github.com/Keivan-sf/Bushuray-tui/utils"
+	"github.com/AnotherProksY/Happ-TUI/global"
+	"github.com/AnotherProksY/Happ-TUI/utils"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"

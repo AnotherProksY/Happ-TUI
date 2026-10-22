@@ -7,18 +7,21 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/Keivan-sf/Bushuray-tui/utils"
+	"github.com/AnotherProksY/Happ-TUI/utils"
 )
 
 type AppConfig struct {
-	SocksPort             int       `json:"socks-port"`
-	HttpPort              int       `json:"http-port"`
-	CoreTCPPort           int       `json:"core-tcp-port"`
-	TestPortRange         PortRange `json:"test-port-range"`
-	TestURL               string    `json:"test-url"`
-	SubscriptionUserAgent string    `json:"subscription-user-agent"`
-	NoBackground          bool      `json:"no-background,omitzero"`
-	AutoConnectOnStart    bool      `json:"auto-connect-on-start,omitzero"`
+	SocksPort             int               `json:"socks-port"`
+	HttpPort              int               `json:"http-port"`
+	CoreTCPPort           int               `json:"core-tcp-port"`
+	TestPortRange         PortRange         `json:"test-port-range"`
+	TestURL               string            `json:"test-url"`
+	SubscriptionUserAgent string            `json:"subscription-user-agent"`
+	SubscriptionClient    string            `json:"subscription-client"`
+	HWID                  string            `json:"hwid"`
+	SubscriptionHeaders   map[string]string `json:"subscription-headers"`
+	NoBackground          bool              `json:"no-background,omitzero"`
+	AutoConnectOnStart    bool              `json:"auto-connect-on-start,omitzero"`
 }
 
 type PortRange struct {
@@ -42,6 +45,9 @@ func defaultConfig() AppConfig {
 		NoBackground:          false,
 		AutoConnectOnStart:    false,
 		SubscriptionUserAgent: "",
+		SubscriptionClient:    "happ",
+		HWID:                  "",
+		SubscriptionHeaders:   map[string]string{},
 		TestURL:               "https://cp.cloudflare.com",
 	}
 }
@@ -64,11 +70,10 @@ func LoadConfig() {
 
 func readConfig() (AppConfig, error) {
 	var default_config AppConfig = defaultConfig()
-	home_dir, err := utils.GetHomeDir()
+	dir_path, err := utils.ConfigDir()
 	if err != nil {
 		return default_config, err
 	}
-	var dir_path = filepath.Join(home_dir, ".config", "bushuray")
 	var config_path = filepath.Join(dir_path, "config.json")
 	file_bytes, err := os.ReadFile(config_path)
 	if err == nil {
@@ -82,19 +87,20 @@ func readConfig() (AppConfig, error) {
 		return default_config, fmt.Errorf("failed to read config file")
 	}
 
-	if err := os.MkdirAll(dir_path, 0777); err != nil {
-		return default_config, fmt.Errorf("config file was not found and failed to create config directory " + dir_path + ": " + err.Error())
+	if err := utils.EnsureDir(dir_path); err != nil {
+		return default_config, fmt.Errorf("config file was not found and failed to create config directory %s: %w", dir_path, err)
 	}
 
 	default_config_json, err := json.MarshalIndent(defaultConfig(), "", " ")
 
 	if err != nil {
-		return default_config, fmt.Errorf("config file was not found and failed to parse default config: " + err.Error())
+		return default_config, fmt.Errorf("config file was not found and failed to parse default config: %w", err)
 	}
 
 	if err := os.WriteFile(config_path, default_config_json, 0666); err != nil {
-		return default_config, fmt.Errorf("config file was not found and failed to write default config: " + err.Error())
+		return default_config, fmt.Errorf("config file was not found and failed to write default config: %w", err)
 	}
+	utils.ChownToInvokingUser(config_path)
 
 	return default_config, nil
 }

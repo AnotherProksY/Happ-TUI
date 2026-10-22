@@ -2,14 +2,14 @@ package TCPServer
 
 import (
 	"bufio"
-	cmd "bushuray-core/commands"
-	"bushuray-core/db"
-	"bushuray-core/lib/config"
-	proxy "bushuray-core/lib/proxy/mainproxy"
-	"bushuray-core/structs"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	cmd "github.com/AnotherProksY/Happ-TUI/core/commands"
+	"github.com/AnotherProksY/Happ-TUI/core/db"
+	"github.com/AnotherProksY/Happ-TUI/core/lib/config"
+	proxy "github.com/AnotherProksY/Happ-TUI/core/lib/proxy/mainproxy"
+	"github.com/AnotherProksY/Happ-TUI/core/structs"
 	"io"
 	"log"
 	"net"
@@ -52,6 +52,7 @@ func (s *Server) Start() {
 
 	go s.handleStatusChange()
 	go s.handleTestResults()
+	go s.autoUpdateSubscriptions()
 
 	go func() {
 		for {
@@ -169,7 +170,11 @@ func (s *Server) handleConnection(conn net.Conn, clientID string) {
 				log.Printf("Invalid body for add-group %v", err)
 				return
 			}
-			command_handler.AddGroup(data)
+			group_added, err := command_handler.AddGroup(data)
+			// fetch right away like Happ does, so the group gets its profiles and title
+			if err == nil && group_added.SubscriptionUrl != "" {
+				go command_handler.UpdateSubscription(structs.UpdateSubscriptionData{GroupId: group_added.Id}, s.proxy_manager)
+			}
 
 		case "delete-group":
 			var data structs.DeleteGroupData

@@ -1,4 +1,4 @@
-module github.com/Keivan-sf/Bushuray-tui
+module github.com/AnotherProksY/Happ-TUI
 
 go 1.24.4
 

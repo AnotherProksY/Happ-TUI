@@ -1,8 +1,8 @@
 package helpview
 
 import (
-	cmds "github.com/Keivan-sf/Bushuray-tui/commands"
-	"github.com/Keivan-sf/Bushuray-tui/global"
+	cmds "github.com/AnotherProksY/Happ-TUI/commands"
+	"github.com/AnotherProksY/Happ-TUI/global"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"

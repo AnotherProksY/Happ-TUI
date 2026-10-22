@@ -5,15 +5,16 @@ import (
 	"fmt"
 	"log"
 
-	"bushuray-core/lib/config"
-	tunscripts "bushuray-core/lib/proxy/mainproxy/scripts"
+	tunscripts "github.com/AnotherProksY/Happ-TUI/core/lib/proxy/mainproxy/scripts"
 )
 
 func (p *ProxyManager) prepareTunMode() error {
 	return tunscripts.GenerateBxrayUser()
 }
 
-func (p *ProxyManager) enableTun() error {
+// enableTun redirects all traffic of the machine to Xray. With hijackDNS,
+// DNS queries leaving the machine are answered by Xray too.
+func (p *ProxyManager) enableTun(hijackDNS bool) error {
 	if err := p.beginTunMode(); err != nil {
 		return err
 	}
@@ -22,18 +23,28 @@ func (p *ProxyManager) enableTun() error {
 		name string
 		run  func() error
 	}
-	steps := []tunStep{
-		{name: "generate routing table", run: tunscripts.GenerateRoutingTable},
-		{name: "create TProxy chain", run: tunscripts.BypassLocalAndLan},
-		{name: "configure TProxy targets", run: tunscripts.MarkAndForwardPackets},
-		{name: "attach PREROUTING chain", run: tunscripts.ApplyMainRules},
-		{name: "configure OUTPUT routing", run: tunscripts.ProxyGateway},
-		{name: "loosen rp_filter", run: tunscripts.LoosenRpFilters},
-	}
-	if p.appConfig.Dns.Mode == config.DNSModeSystem {
-		steps = append(steps, tunStep{name: "bypass system DNS", run: tunscripts.BypassDns})
+	var steps []tunStep
+	if tunscripts.HasNft() {
+		steps = []tunStep{
+			{name: "generate routing table", run: tunscripts.GenerateRoutingTable},
+			{name: "apply nftables rules", run: func() error { return tunscripts.ApplyNftRules(hijackDNS) }},
+			{name: "block IPv6", run: tunscripts.BlockIPv6},
+			{name: "loosen rp_filter", run: tunscripts.LoosenRpFilters},
+		}
 	} else {
-		steps = append(steps, tunStep{name: "hijack DNS", run: tunscripts.HijackDns})
+		steps = []tunStep{
+			{name: "generate routing table", run: tunscripts.GenerateRoutingTable},
+			{name: "create TProxy chain", run: tunscripts.BypassLocalAndLan},
+			{name: "configure TProxy targets", run: tunscripts.MarkAndForwardPackets},
+			{name: "attach PREROUTING chain", run: tunscripts.ApplyMainRules},
+			{name: "configure OUTPUT routing", run: tunscripts.ProxyGateway},
+			{name: "loosen rp_filter", run: tunscripts.LoosenRpFilters},
+		}
+		if hijackDNS {
+			steps = append(steps, tunStep{name: "hijack DNS", run: tunscripts.HijackDns})
+		} else {
+			steps = append(steps, tunStep{name: "bypass system DNS", run: tunscripts.BypassDns})
+		}
 	}
 
 	for _, step := range steps {

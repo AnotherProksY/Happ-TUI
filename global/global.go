@@ -1,7 +1,7 @@
 package global
 
 import (
-	appconfig "github.com/Keivan-sf/Bushuray-tui/lib/AppConfig"
+	appconfig "github.com/AnotherProksY/Happ-TUI/lib/AppConfig"
 
 	"github.com/charmbracelet/lipgloss"
 )
@@ -16,3 +16,6 @@ func GetBgColor() lipgloss.TerminalColor {
 		return BgColor
 	}
 }
+
+// Version is set at build time with -ldflags "-X github.com/AnotherProksY/Happ-TUI/global.Version=..."
+var Version = "v0.3.0-dev"

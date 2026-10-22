@@ -3,9 +3,9 @@ package list
 import (
 	"log"
 
-	notif_publisher "github.com/Keivan-sf/Bushuray-tui/lib/NotifPublisher"
-	servercmds "github.com/Keivan-sf/Bushuray-tui/lib/ServerCommands"
-	sharedtypes "github.com/Keivan-sf/Bushuray-tui/shared_types"
+	notif_publisher "github.com/AnotherProksY/Happ-TUI/lib/NotifPublisher"
+	servercmds "github.com/AnotherProksY/Happ-TUI/lib/ServerCommands"
+	sharedtypes "github.com/AnotherProksY/Happ-TUI/shared_types"
 	"github.com/atotto/clipboard"
 )
 

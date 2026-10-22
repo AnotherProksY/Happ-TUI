@@ -1,4 +1,4 @@
-module bushuray-core
+module github.com/AnotherProksY/Happ-TUI/core
 
 go 1.24.4
 

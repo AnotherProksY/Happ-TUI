@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"time"
 
-	"bushuray-core/lib/proxy/xray"
-	"bushuray-core/structs"
-	"bushuray-core/utils"
+	"github.com/AnotherProksY/Happ-TUI/core/lib/proxy/builder"
+	"github.com/AnotherProksY/Happ-TUI/core/lib/proxy/xray"
+	"github.com/AnotherProksY/Happ-TUI/core/structs"
 
 	goproxy "golang.org/x/net/proxy"
 )
@@ -20,12 +20,18 @@ type TestResult struct {
 
 type TestRequest struct {
 	Profile    structs.Profile
+	TestURL    string
 	Generation uint64
 }
 
-func (p *ProxyManager) TestProfile(profile structs.Profile) {
+// TestProfile queues a connectivity test. An empty testURL uses the configured test-url.
+func (p *ProxyManager) TestProfile(profile structs.Profile, testURL string) {
+	if testURL == "" {
+		testURL = p.appConfig.TestURL
+	}
 	p.testChannel <- TestRequest{
 		Profile:    profile,
+		TestURL:    testURL,
 		Generation: p.testGeneration.Load(),
 	}
 }
@@ -52,19 +58,19 @@ func (p *ProxyManager) listenForTests(tests_chan chan TestRequest) {
 		}
 		go func(req TestRequest) {
 			defer func() { <-sem }()
-			ping := p.test(req.Profile)
+			ping := p.test(req.Profile, req.TestURL)
 			p.sendTestResult(req.Profile, ping, req.Generation)
 		}(req)
 	}
 }
 
-func (p *ProxyManager) test(profile structs.Profile) int {
+func (p *ProxyManager) test(profile structs.Profile, testURL string) int {
 	port, err := p.portPool.GetPort()
 	if err != nil {
 		return -1
 	}
 	defer p.portPool.ReleasePort(port)
-	parsed, err := utils.ParseUri(profile.Uri, port, -1, -1)
+	parsed, err := builder.ProfileConfig(profile, port, -1, -1)
 	if err != nil {
 		return -1
 	}
@@ -96,7 +102,7 @@ func (p *ProxyManager) test(profile structs.Profile) int {
 		Timeout:   5 * time.Second,
 	}
 	start_time := time.Now()
-	_, err = client.Get(p.appConfig.TestURL)
+	_, err = client.Get(testURL)
 	ping := time.Since(start_time)
 
 	if err != nil {

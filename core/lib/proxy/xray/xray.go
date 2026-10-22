@@ -1,9 +1,9 @@
 package xray
 
 import (
-	"bushuray-core/utils"
 	"context"
 	"fmt"
+	"github.com/AnotherProksY/Happ-TUI/core/utils"
 	"log"
 	"os/exec"
 	"os/user"

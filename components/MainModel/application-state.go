@@ -1,9 +1,9 @@
 package mainmodel
 
 import (
-	list "github.com/Keivan-sf/Bushuray-tui/components/List"
-	tabs "github.com/Keivan-sf/Bushuray-tui/components/Tabs"
-	sharedtypes "github.com/Keivan-sf/Bushuray-tui/shared_types"
+	list "github.com/AnotherProksY/Happ-TUI/components/List"
+	tabs "github.com/AnotherProksY/Happ-TUI/components/Tabs"
+	sharedtypes "github.com/AnotherProksY/Happ-TUI/shared_types"
 
 	tea "github.com/charmbracelet/bubbletea"
 	zone "github.com/lrstanley/bubblezone"
@@ -32,6 +32,7 @@ func applyApplicationState(msg sharedtypes.ApplicationState, m Model) (tea.Model
 		tabview.Content.Id = zone.NewPrefix()
 		tabview.Content.GroupId = group.Group.Id
 		tabview.Title = group.Group.Name
+		tabview.SubscriptionInfo = group.Group.SubscriptionInfo
 		for i, profile := range group.Profiles {
 			if connected_profile_gid == profile.GroupId && connected_profile_id == profile.Id {
 				tabview.Content.Primary = i
@@ -66,8 +67,10 @@ func convertProtocolForDisplay(name string) string {
 		return "SHADOW"
 	case "trojan":
 		return "TROJAN"
-	case "hysteria":
+	case "hysteria", "hysteria2":
 		return "HYSTRA"
+	case "wireguard":
+		return "WIREGD"
 	}
 	return name
 }

@@ -2,17 +2,19 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"time"
 
-	mainmodel "github.com/Keivan-sf/Bushuray-tui/components/MainModel"
-	appconfig "github.com/Keivan-sf/Bushuray-tui/lib/AppConfig"
-	connection "github.com/Keivan-sf/Bushuray-tui/lib/Connection"
-	notif_publisher "github.com/Keivan-sf/Bushuray-tui/lib/NotifPublisher"
-	servercmds "github.com/Keivan-sf/Bushuray-tui/lib/ServerCommands"
-	sharedtypes "github.com/Keivan-sf/Bushuray-tui/shared_types"
-	"github.com/Keivan-sf/Bushuray-tui/utils"
+	mainmodel "github.com/AnotherProksY/Happ-TUI/components/MainModel"
+	"github.com/AnotherProksY/Happ-TUI/global"
+	appconfig "github.com/AnotherProksY/Happ-TUI/lib/AppConfig"
+	connection "github.com/AnotherProksY/Happ-TUI/lib/Connection"
+	notif_publisher "github.com/AnotherProksY/Happ-TUI/lib/NotifPublisher"
+	servercmds "github.com/AnotherProksY/Happ-TUI/lib/ServerCommands"
+	sharedtypes "github.com/AnotherProksY/Happ-TUI/shared_types"
+	"github.com/AnotherProksY/Happ-TUI/utils"
 
 	tea "github.com/charmbracelet/bubbletea"
 	zone "github.com/lrstanley/bubblezone"
@@ -21,8 +23,10 @@ import (
 )
 
 func main() {
+	// keep early messages (home directory lookup) off the terminal
+	log.SetOutput(io.Discard)
 	log.SetOutput(&lumberjack.Logger{
-		Filename:   "debug.log",
+		Filename:   utils.LogFile("happ-tui.log"),
 		MaxSize:    20,
 		MaxBackups: 1,
 		MaxAge:     0,
@@ -31,6 +35,13 @@ func main() {
 	log.SetPrefix("debug: ")
 	log.SetFlags(log.LstdFlags | log.Lmsgprefix)
 
+	if len(os.Args) > 1 && os.Args[1] == "version" {
+		fmt.Println("happ-tui", global.Version)
+		return
+	}
+	if err := utils.MigrateLegacyDirs(); err != nil {
+		log.Println("failed to migrate bushuray directories:", err)
+	}
 	appconfig.LoadConfig()
 	port := appconfig.GetConfig().CoreTCPPort
 
@@ -45,7 +56,7 @@ func main() {
 	err := C.GetConnection()
 	if err != nil {
 		fmt.Println("core was not found at", port, "trying to spawn")
-		err := utils.SpawnBushurayCore()
+		err := utils.SpawnCore()
 		if err != nil {
 			fmt.Println("failed to spawn core:", err)
 			return
@@ -79,20 +90,20 @@ func die(port int) {
 	C.Init("127.0.0.1", port)
 
 	if err := C.GetConnection(); err != nil {
-		fmt.Println("Bushuray is not running")
+		fmt.Println("Happ-TUI is not running")
 		return
 	}
 	defer C.Close()
 
 	if err := C.Send(servercmds.CreateJsonCommand("die", sharedtypes.DieData{})); err != nil {
-		fmt.Println("failed to stop Bushuray:", err)
+		fmt.Println("failed to stop Happ-TUI:", err)
 		return
 	}
 
 	if err := C.WaitForClose(); err != nil {
-		fmt.Println("failed while waiting for Bushuray to stop:", err)
+		fmt.Println("failed while waiting for Happ-TUI to stop:", err)
 		return
 	}
 
-	fmt.Println("Bushuray has stopped successfully")
+	fmt.Println("Happ-TUI has stopped successfully")
 }

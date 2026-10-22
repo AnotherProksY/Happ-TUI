@@ -5,8 +5,9 @@ import (
 	"syscall"
 )
 
-func SpawnBushurayCore() error {
-	cmdPath, err := GetBinPath("bushuray-core")
+// SpawnCore starts the back-end detached from the terminal.
+func SpawnCore() error {
+	cmdPath, err := GetBinPath(AppName + "-core")
 	if err != nil {
 		return err
 	}

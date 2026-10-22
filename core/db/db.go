@@ -1,9 +1,9 @@
 package db
 
 import (
-	"bushuray-core/structs"
 	"encoding/json"
 	"fmt"
+	"github.com/AnotherProksY/Happ-TUI/core/structs"
 	"log"
 	"os"
 	"path/filepath"

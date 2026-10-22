@@ -79,8 +79,10 @@ type UpdateSubscriptionData struct {
 }
 
 type SubscriptionUpdated struct {
-	GroupId  int       `json:"group_id"`
-	Profiles []Profile `json:"profiles"`
+	GroupId          int              `json:"group_id"`
+	Name             string           `json:"name"`
+	Profiles         []Profile        `json:"profiles"`
+	SubscriptionInfo SubscriptionInfo `json:"subscription_info"`
 }
 
 type Warning struct {
@@ -114,10 +116,29 @@ type GroupWithProfiles struct {
 }
 
 type Group struct {
-	Id              int    `json:"id"`
-	SubscriptionUrl string `json:"subscription_url"`
-	Name            string `json:"name"`
-	LastId          int    `json:"last_id"`
+	Id               int              `json:"id"`
+	SubscriptionUrl  string           `json:"subscription_url"`
+	Name             string           `json:"name"`
+	LastId           int              `json:"last_id"`
+	SubscriptionInfo SubscriptionInfo `json:"subscription_info,omitzero"`
+	LastUpdated      int64            `json:"last_updated,omitzero"`
+}
+
+// SubscriptionInfo is the metadata a provider sends in Happ-style response headers.
+type SubscriptionInfo struct {
+	Title          string `json:"title,omitzero"`
+	Upload         int64  `json:"upload,omitzero"`
+	Download       int64  `json:"download,omitzero"`
+	Total          int64  `json:"total,omitzero"`
+	Expire         int64  `json:"expire,omitzero"`
+	UpdateInterval int    `json:"update_interval,omitzero"` // seconds
+	SupportUrl     string `json:"support_url,omitzero"`
+	WebPageUrl     string `json:"web_page_url,omitzero"`
+	Announce       string `json:"announce,omitzero"`
+	// CheckUrl is the url the provider wants profiles to be tested with.
+	CheckUrl string `json:"check_url,omitzero"`
+	// ChangeUserAgent is the user-agent the provider asked to use for later updates.
+	ChangeUserAgent string `json:"change_user_agent,omitzero"`
 }
 
 type Profile struct {

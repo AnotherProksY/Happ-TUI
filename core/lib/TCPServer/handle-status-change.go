@@ -1,7 +1,7 @@
 package TCPServer
 
 import (
-	"bushuray-core/lib"
+	"github.com/AnotherProksY/Happ-TUI/core/lib"
 	"log"
 )
 

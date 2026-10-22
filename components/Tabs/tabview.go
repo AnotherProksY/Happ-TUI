@@ -4,16 +4,18 @@ import (
 	"fmt"
 	"strings"
 
-	list "github.com/Keivan-sf/Bushuray-tui/components/List"
-	"github.com/Keivan-sf/Bushuray-tui/global"
+	list "github.com/AnotherProksY/Happ-TUI/components/List"
+	"github.com/AnotherProksY/Happ-TUI/global"
+	sharedtypes "github.com/AnotherProksY/Happ-TUI/shared_types"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
 type TabView struct {
-	Title   string
-	Content list.Model
+	Title            string
+	Content          list.Model
+	SubscriptionInfo sharedtypes.SubscriptionInfo
 }
 
 var border_color = lipgloss.Color("#7287fd")

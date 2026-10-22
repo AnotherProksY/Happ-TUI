@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"log"
 
-	np "github.com/Keivan-sf/Bushuray-tui/lib/NotifPublisher"
-	sharedtypes "github.com/Keivan-sf/Bushuray-tui/shared_types"
+	np "github.com/AnotherProksY/Happ-TUI/lib/NotifPublisher"
+	sharedtypes "github.com/AnotherProksY/Happ-TUI/shared_types"
 )
 
 func HandleNotification(msg sharedtypes.TcpMessage) {

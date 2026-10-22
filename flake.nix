@@ -1,5 +1,5 @@
 {
-  description = "Bushuray";
+  description = "Happ-TUI";
 
   inputs = { nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.05"; };
 
@@ -15,7 +15,7 @@
       packages = forAllSystems ({ pkgs }: {
         # regular nix build (NixOS-only)
         default = pkgs.buildGo124Module rec {
-          pname = "bushuray";
+          pname = "happ-tui";
           version = "0.1.0";
           src = ./.;
           vendorHash = "sha256-ucw4elcWAEqMa9HOFLqbBlYkgBZ8COn+M0WB1RlymhY=";
@@ -23,7 +23,7 @@
 
         # portable static binary (musl)
         portable = pkgs.pkgsCross.musl64.buildGo124Module rec {
-          pname = "bushuray";
+          pname = "happ-tui";
           version = "0.1.0";
           src = ./.;
           vendorHash = "sha256-ucw4elcWAEqMa9HOFLqbBlYkgBZ8COn+M0WB1RlymhY=";

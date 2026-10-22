@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"log"
 
-	connection "github.com/Keivan-sf/Bushuray-tui/lib/Connection"
-	sharedtypes "github.com/Keivan-sf/Bushuray-tui/shared_types"
+	connection "github.com/AnotherProksY/Happ-TUI/lib/Connection"
+	sharedtypes "github.com/AnotherProksY/Happ-TUI/shared_types"
 )
 
 type ServerCmds struct {

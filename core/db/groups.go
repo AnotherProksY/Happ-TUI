@@ -1,31 +1,40 @@
 package db
 
 import (
-	"bushuray-core/structs"
 	"encoding/json"
 	"fmt"
+	"github.com/AnotherProksY/Happ-TUI/core/structs"
 	"log"
 	"os"
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 )
 
-func (db *DB) UpdateGroupAndProfiles(group_id int, profiles []structs.DBAddProfileData, keep_profile_id int) ([]structs.Profile, error) {
+func (db *DB) UpdateGroupAndProfiles(group_id int, profiles []structs.DBAddProfileData, keep_profile_id int, info structs.SubscriptionInfo) ([]structs.Profile, structs.Group, error) {
 	db.mu.Lock()
 	defer db.mu.Unlock()
 	profiles_added := []structs.Profile{}
 	group_dir := db.GetGroupDirPath(group_id)
 
 	group_config, err := db.loadGroupConfig(group_id)
-	group_config.LastId = 0
 	if err != nil {
-		return profiles_added, fmt.Errorf("Error getting group: %w", err)
+		return profiles_added, group_config, fmt.Errorf("Error getting group: %w", err)
+	}
+	group_config.LastId = 0
+	if info.ChangeUserAgent == "" {
+		info.ChangeUserAgent = group_config.SubscriptionInfo.ChangeUserAgent
+	}
+	group_config.SubscriptionInfo = info
+	group_config.LastUpdated = time.Now().Unix()
+	if strings.TrimSpace(group_config.Name) == "" && info.Title != "" {
+		group_config.Name = info.Title
 	}
 
 	entries, err := os.ReadDir(group_dir)
 	if err != nil {
-		return profiles_added, fmt.Errorf("Error reading directory: %w", err)
+		return profiles_added, group_config, fmt.Errorf("Error reading directory: %w", err)
 	}
 
 	if keep_profile_id != 0 {
@@ -65,7 +74,7 @@ func (db *DB) UpdateGroupAndProfiles(group_id int, profiles []structs.DBAddProfi
 		}
 	}
 
-	return profiles_added, nil
+	return profiles_added, group_config, nil
 }
 
 func (db *DB) updateGroup(group structs.Group) error {

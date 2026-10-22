@@ -8,10 +8,13 @@ import (
 	"os/exec"
 	"strings"
 
-	tunscripts "bushuray-core/lib/proxy/mainproxy/scripts"
+	tunscripts "github.com/AnotherProksY/Happ-TUI/core/lib/proxy/mainproxy/scripts"
 )
 
-const tunStatePath = "/run/bushuray-core-tun-state.json"
+const tunStatePath = "/run/happ-tui-core-tun-state.json"
+
+// legacyTunStatePath is where bushuray kept the state before the rename.
+const legacyTunStatePath = "/run/bushuray-core-tun-state.json"
 const tunStateVersion = 1
 
 type persistedTunState struct {
@@ -45,6 +48,10 @@ func (p *ProxyManager) beginTunMode() error {
 }
 
 func (p *ProxyManager) recoverPersistedTunMode() error {
+	// pick up a TUN session bushuray left behind so its rp_filter is restored
+	if !tunStateExists() {
+		os.Rename(legacyTunStatePath, tunStatePath)
+	}
 	if !tunStateExists() {
 		return nil
 	}
@@ -111,7 +118,7 @@ func persistTunState(state persistedTunState) error {
 		return err
 	}
 
-	stateFile, err := os.CreateTemp("/run", ".bushuray-core-tun-state-*")
+	stateFile, err := os.CreateTemp("/run", ".happ-tui-core-tun-state-*")
 	if err != nil {
 		return err
 	}

@@ -2,6 +2,9 @@ package tabs
 
 import (
 	"fmt"
+	"time"
+
+	sharedtypes "github.com/AnotherProksY/Happ-TUI/shared_types"
 
 	"github.com/charmbracelet/lipgloss"
 )
@@ -30,7 +33,41 @@ func (m Model) renderStatusBar() string {
 		tun_status = lipgloss.NewStyle().Background(lipgloss.Color("#1e1e2e")).Foreground(lipgloss.Color("#ffffff")).Width(9).Align(lipgloss.Center).Render("TUN OFF")
 	}
 
-	bg := lipgloss.NewStyle().Width(bg_width).Background(lipgloss.Color("#11111b")).Foreground(lipgloss.Color("#585b70")).Render(fmt.Sprintf(" SOCKS5 *:%d | HTTP *:%d", m.SocksPort, m.HttpPort))
+	status_text := fmt.Sprintf(" SOCKS5 *:%d | HTTP *:%d", m.SocksPort, m.HttpPort)
+	if len(m.Children) > 0 {
+		status_text += renderSubscriptionInfo(m.Children[m.ActiveTap].SubscriptionInfo)
+	}
+	bg := lipgloss.NewStyle().Width(bg_width).MaxWidth(bg_width).Inline(true).Background(lipgloss.Color("#11111b")).Foreground(lipgloss.Color("#585b70")).Render(status_text)
 
 	return lipgloss.NewStyle().MarginTop(0).Render(lipgloss.JoinHorizontal(lipgloss.Top, connection_status, bg, tun_status))
+}
+
+// renderSubscriptionInfo shows traffic and expiry the provider reported for the group.
+func renderSubscriptionInfo(info sharedtypes.SubscriptionInfo) string {
+	used := info.Upload + info.Download
+	if used == 0 && info.Total == 0 && info.Expire == 0 {
+		return ""
+	}
+	total := "∞"
+	if info.Total > 0 {
+		total = formatBytes(info.Total)
+	}
+	text := fmt.Sprintf(" | %s / %s", formatBytes(used), total)
+	if info.Expire > 0 {
+		text += " | until " + time.Unix(info.Expire, 0).Format("2006-01-02")
+	}
+	return text
+}
+
+func formatBytes(bytes int64) string {
+	const unit = 1024
+	if bytes < unit {
+		return fmt.Sprintf("%d B", bytes)
+	}
+	div, exp := int64(unit), 0
+	for n := bytes / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %ciB", float64(bytes)/float64(div), "KMGTPE"[exp])
 }

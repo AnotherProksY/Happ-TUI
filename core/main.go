@@ -7,21 +7,22 @@ import (
 	"os/signal"
 	"syscall"
 
-	"bushuray-core/db"
-	"bushuray-core/lib"
-	"bushuray-core/lib/TCPServer"
-	"bushuray-core/lib/config"
-	proxy "bushuray-core/lib/proxy/mainproxy"
-	"bushuray-core/structs"
+	"github.com/AnotherProksY/Happ-TUI/core/db"
+	"github.com/AnotherProksY/Happ-TUI/core/lib"
+	"github.com/AnotherProksY/Happ-TUI/core/lib/TCPServer"
+	"github.com/AnotherProksY/Happ-TUI/core/lib/config"
+	proxy "github.com/AnotherProksY/Happ-TUI/core/lib/proxy/mainproxy"
+	"github.com/AnotherProksY/Happ-TUI/core/structs"
+	"github.com/AnotherProksY/Happ-TUI/core/utils"
 
 	lumberjack "gopkg.in/natefinch/lumberjack.v2"
 )
 
 func main() {
-	log.Println("logs: ./core-debug.log")
-	log.Println("for unix you can run: tail -f ./core-debug.log")
+	log_file := utils.LogFile("core.log")
+	log.Println("logs:", log_file)
 	log.SetOutput(&lumberjack.Logger{
-		Filename:   "core-debug.log",
+		Filename:   log_file,
 		MaxSize:    20,
 		MaxBackups: 1,
 		MaxAge:     0,
@@ -32,11 +33,10 @@ func main() {
 	log.SetFlags(log.LstdFlags | log.Lmsgprefix)
 	stop_sig := make(chan bool, 1)
 
-	appConfig, err := config.LoadAppConfig()
-	if err != nil {
-		log.Println("failed to load application config:", err, "using defaults")
+	if err := utils.MigrateLegacyDirs(); err != nil {
+		log.Println("failed to migrate bushuray directories:", err)
 	}
-
+	appConfig, err := config.LoadAppConfig()
 	if err != nil {
 		log.Println("failed to load application config:", err, "using defaults")
 	}

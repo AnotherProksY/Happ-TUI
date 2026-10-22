@@ -4,7 +4,7 @@ import (
 	"cmp"
 	"slices"
 
-	list "github.com/Keivan-sf/Bushuray-tui/components/List"
+	list "github.com/AnotherProksY/Happ-TUI/components/List"
 )
 
 func (m *Model) sort_by_test_results() {

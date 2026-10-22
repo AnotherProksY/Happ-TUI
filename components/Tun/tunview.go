@@ -1,10 +1,10 @@
 package tunview
 
 import (
-	cmds "github.com/Keivan-sf/Bushuray-tui/commands"
-	"github.com/Keivan-sf/Bushuray-tui/components/shared"
-	"github.com/Keivan-sf/Bushuray-tui/global"
-	servercmds "github.com/Keivan-sf/Bushuray-tui/lib/ServerCommands"
+	cmds "github.com/AnotherProksY/Happ-TUI/commands"
+	"github.com/AnotherProksY/Happ-TUI/components/shared"
+	"github.com/AnotherProksY/Happ-TUI/global"
+	servercmds "github.com/AnotherProksY/Happ-TUI/lib/ServerCommands"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -26,16 +26,16 @@ func (m Model) View() string {
 	var help_test = shared.GenHelp([]string{"enter", "esc"}, []string{"YES", "NO"})
 	bg_style := lipgloss.NewStyle().Background(global.GetBgColor())
 
-	sudo_bushuray := lipgloss.NewStyle().
+	sudo_happ_tui := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("#ca9ee6")).
 		Background(global.GetBgColor()).
-		Render("sudo bushuray")
+		Render("sudo happ-tui")
 
 	dialog_text := lipgloss.
 		JoinHorizontal(
 			lipgloss.Left,
 			bg_style.Render("Core is not running as root, do you want to kill it so you can start again with "),
-			sudo_bushuray,
+			sudo_happ_tui,
 			bg_style.Render(" ?"))
 
 	dialog := dialog_style.

@@ -1,8 +1,8 @@
 package lib
 
 import (
-	"bushuray-core/structs"
 	"encoding/json"
+	"github.com/AnotherProksY/Happ-TUI/core/structs"
 	"log"
 )
 

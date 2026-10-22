@@ -3,7 +3,7 @@ package servercmds
 import (
 	"log"
 
-	sharedtypes "github.com/Keivan-sf/Bushuray-tui/shared_types"
+	sharedtypes "github.com/AnotherProksY/Happ-TUI/shared_types"
 )
 
 func GetApplicationState() {

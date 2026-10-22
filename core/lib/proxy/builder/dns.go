@@ -7,15 +7,15 @@ import (
 	"net"
 	"strings"
 
-	"bushuray-core/lib/config"
+	"github.com/AnotherProksY/Happ-TUI/core/lib/config"
 )
 
 const (
-	xrayDNSTag            = "bushuray-dns"
-	xrayDNSRuleTag        = "bushuray-dns-routing"
-	xrayDNSHijackRuleTag  = "bushuray-dns-hijack-routing"
-	xrayDNSOutboundTag    = "bushuray-dns-out"
-	xrayDirectOutboundTag = "bushuray-dns-direct"
+	xrayDNSTag            = "happ-tui-dns"
+	xrayDNSRuleTag        = "happ-tui-dns-routing"
+	xrayDNSHijackRuleTag  = "happ-tui-dns-hijack-routing"
+	xrayDNSOutboundTag    = "happ-tui-dns-out"
+	xrayDirectOutboundTag = "happ-tui-dns-direct"
 	xrayProxyOutboundTag  = "proxy"
 )
 
@@ -213,7 +213,7 @@ func ensureProxyOutboundTag(coreConfig map[string]any) (string, error) {
 		return tag, nil
 	}
 
-	tag := uniqueOutboundTag(outbounds, "bushuray-proxy")
+	tag := uniqueOutboundTag(outbounds, "happ-tui-proxy")
 	firstOutbound["tag"] = tag
 	return tag, nil
 }

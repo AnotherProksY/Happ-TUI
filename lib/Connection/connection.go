@@ -12,8 +12,8 @@ import (
 	"sync"
 	"time"
 
-	servernotifs "github.com/Keivan-sf/Bushuray-tui/lib/ServerNotifs"
-	sharedtypes "github.com/Keivan-sf/Bushuray-tui/shared_types"
+	servernotifs "github.com/AnotherProksY/Happ-TUI/lib/ServerNotifs"
+	sharedtypes "github.com/AnotherProksY/Happ-TUI/shared_types"
 
 	tea "github.com/charmbracelet/bubbletea"
 )

@@ -2,10 +2,10 @@ package addgroup
 
 import (
 	// "fmt"
-	cmds "github.com/Keivan-sf/Bushuray-tui/commands"
-	"github.com/Keivan-sf/Bushuray-tui/components/shared"
-	"github.com/Keivan-sf/Bushuray-tui/global"
-	servercmds "github.com/Keivan-sf/Bushuray-tui/lib/ServerCommands"
+	cmds "github.com/AnotherProksY/Happ-TUI/commands"
+	"github.com/AnotherProksY/Happ-TUI/components/shared"
+	"github.com/AnotherProksY/Happ-TUI/global"
+	servercmds "github.com/AnotherProksY/Happ-TUI/lib/ServerCommands"
 
 	"github.com/charmbracelet/bubbles/cursor"
 	"github.com/charmbracelet/bubbles/textinput"
@@ -34,7 +34,7 @@ func InitialModel() Model {
 
 		switch i {
 		case 0:
-			t.Placeholder = "Group name"
+			t.Placeholder = "Group name (optional with URL)"
 			t.Focus()
 			t.TextStyle = focusedStyle.Background(global.GetBgColor())
 			t.PromptStyle = focusedStyle.Background(global.GetBgColor())
@@ -75,7 +75,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 			commands := make([]tea.Cmd, len(m.inputs))
 
-			if s == "enter" && m.focusIndex == len(m.inputs) && m.inputs[0].Value() != "" {
+			if s == "enter" && m.focusIndex == len(m.inputs) && (m.inputs[0].Value() != "" || m.inputs[1].Value() != "") {
 				servercmds.AddGroup(m.inputs[0].Value(), m.inputs[1].Value())
 				commands = append(commands, cmds.ExitAddGroupView)
 				m.reset()

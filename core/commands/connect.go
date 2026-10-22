@@ -1,8 +1,8 @@
 package cmd
 
 import (
-	proxy "bushuray-core/lib/proxy/mainproxy"
-	"bushuray-core/structs"
+	proxy "github.com/AnotherProksY/Happ-TUI/core/lib/proxy/mainproxy"
+	"github.com/AnotherProksY/Happ-TUI/core/structs"
 	"log"
 )
 

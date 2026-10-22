@@ -1,7 +1,7 @@
 package updateprofile
 
 import (
-	"github.com/Keivan-sf/Bushuray-tui/global"
+	"github.com/AnotherProksY/Happ-TUI/global"
 
 	"github.com/charmbracelet/lipgloss"
 )

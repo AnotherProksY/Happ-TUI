@@ -1,10 +1,10 @@
 package cmd
 
 import (
-	"bushuray-core/db"
-	"bushuray-core/lib"
-	"bushuray-core/lib/config"
-	"bushuray-core/structs"
+	"github.com/AnotherProksY/Happ-TUI/core/db"
+	"github.com/AnotherProksY/Happ-TUI/core/lib"
+	"github.com/AnotherProksY/Happ-TUI/core/lib/config"
+	"github.com/AnotherProksY/Happ-TUI/core/structs"
 	"log"
 	"net"
 )
@@ -34,14 +34,15 @@ func (cmd *Cmd) DeleteGroup(data structs.DeleteGroupData) {
 	cmd.send("group-deleted", group_deleted)
 }
 
-func (cmd *Cmd) AddGroup(data structs.AddGroupData) {
+func (cmd *Cmd) AddGroup(data structs.AddGroupData) (structs.GroupAdded, error) {
 	group_added, err := cmd.DB.AddGroup(data.Name, data.SubscriptionUrl)
 	if err != nil {
 		log.Printf("there was an error adding group %s", err.Error())
 		cmd.warn("add-group-failed", "there was an error adding group")
-		return
+		return group_added, err
 	}
 	cmd.send("group-added", group_added)
+	return group_added, nil
 }
 
 func (cmd *Cmd) AddProfiles(data structs.AddProfilesData) {

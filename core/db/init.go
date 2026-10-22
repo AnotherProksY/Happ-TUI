@@ -1,9 +1,9 @@
 package db
 
 import (
-	"bushuray-core/structs"
-	"bushuray-core/utils"
 	"encoding/json"
+	"github.com/AnotherProksY/Happ-TUI/core/structs"
+	"github.com/AnotherProksY/Happ-TUI/core/utils"
 	"log"
 	"os"
 	"path/filepath"
@@ -13,12 +13,15 @@ import (
 func (db *DB) Initialize() {
 	oldUmask := syscall.Umask(0)
 	defer syscall.Umask(oldUmask)
-	homeDir, err := utils.GetHomeDir()
+	data_dir, err := utils.DataDir()
 	if err != nil {
 		log.Fatal("cannot get user home directory")
 	}
-	var db_path = filepath.Join(homeDir, ".local", "share", "bushuray", "db")
+	var db_path = filepath.Join(data_dir, "db")
 	db.Path = db_path
+	if err := utils.EnsureDir(data_dir); err != nil {
+		log.Fatal("failed to create data directory " + data_dir + ": " + err.Error())
+	}
 	if err := os.MkdirAll(db_path, 0777); err != nil {
 		log.Fatal("failed to create database directory " + db_path + ": " + err.Error())
 	}
