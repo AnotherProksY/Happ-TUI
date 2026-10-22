@@ -121,7 +121,9 @@ To build the release archive (needs go, cargo, git, curl, unzip):
 ```
 VERSION=0.3.0 packaging/build-release.sh
 ```
-It downloads a pinned Xray release, checks its SHA-256, builds v2parser at a pinned commit and writes `dist/happ-tui-<version>-linux-x86_64.tar.gz`.
+It downloads a pinned Xray release, checks its SHA-256, builds v2parser at a pinned commit and writes `dist/happ-tui-<version>-linux-x86_64.tar.gz`. With `V2PARSER_TARGET=x86_64-unknown-linux-musl` (and that rustup target installed) v2parser is linked statically.
+
+Releases are built by GitHub Actions ([`.github/workflows/release.yml`](.github/workflows/release.yml)): pushing a tag like `v0.3.1` runs the tests, builds the archive with a static v2parser and publishes it as a release. Running the workflow by hand builds the archive as an artifact only.
 
 ### Debugging
 If something is not working as expected, look at the logs:

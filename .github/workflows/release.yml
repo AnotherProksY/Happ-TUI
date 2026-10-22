@@ -1,0 +1,68 @@
+name: Release
+
+# A pushed tag like v0.3.1 builds the archive and publishes a GitHub release.
+# Running the workflow by hand only builds it and keeps it as an artifact.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    env:
+      V2PARSER_TARGET: x86_64-unknown-linux-musl
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: |
+            go.sum
+            core/go.sum
+
+      - name: Add Rust musl target
+        run: rustup target add "$V2PARSER_TARGET"
+
+      - name: Test
+        run: |
+          go vet ./... && go test ./...
+          cd core && go vet ./... && go test ./...
+
+      - name: Version
+        id: version
+        run: |
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=0.0.0-dev.$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: packaging/build-release.sh
+
+      - name: Check v2parser is static
+        run: |
+          file dist/build/happ-tui-*/lib/happ-tui/v2parser
+          file dist/build/happ-tui-*/lib/happ-tui/v2parser | grep -Eq "statically linked|static-pie linked"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: happ-tui-${{ steps.version.outputs.version }}-linux-x86_64
+          path: |
+            dist/*.tar.gz
+            dist/*.sha256
+
+      - name: Publish release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/*.tar.gz dist/*.sha256 \
+            --title "Happ-TUI $GITHUB_REF_NAME" --generate-notes
