@@ -16,9 +16,9 @@ jobs:
     env:
       V2PARSER_TARGET: x86_64-unknown-linux-musl
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache-dependency-path: |
@@ -52,7 +52,7 @@ jobs:
           file dist/build/happ-tui-*/lib/happ-tui/v2parser
           file dist/build/happ-tui-*/lib/happ-tui/v2parser | grep -Eq "statically linked|static-pie linked"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: happ-tui-${{ steps.version.outputs.version }}-linux-x86_64
           path: |
