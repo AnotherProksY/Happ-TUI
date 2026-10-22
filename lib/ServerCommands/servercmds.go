@@ -9,12 +9,12 @@ import (
 )
 
 type ServerCmds struct {
-	connection *connection.ConnectionHandler
+	connection *connection.Client
 }
 
 var sc ServerCmds
 
-func Init(connection *connection.ConnectionHandler) {
+func Init(connection *connection.Client) {
 	sc.connection = connection
 }
 

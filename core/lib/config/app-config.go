@@ -11,7 +11,6 @@ import (
 type AppConfig struct {
 	SocksPort             int                `json:"socks-port"`
 	HttpPort              int                `json:"http-port"`
-	CoreTCPPort           int                `json:"core-tcp-port"`
 	TestPortRange         PortRange          `json:"test-port-range"`
 	TestURL               string             `json:"test-url"`
 	SubscriptionUserAgent string             `json:"subscription-user-agent"`
@@ -72,9 +71,8 @@ func defaultDNSConfig() DNSConfig {
 
 func defaultAppConfig() AppConfig {
 	return AppConfig{
-		SocksPort:   3090,
-		HttpPort:    3091,
-		CoreTCPPort: 4897,
+		SocksPort: 3090,
+		HttpPort:  3091,
 		TestPortRange: PortRange{
 			Start: 3095,
 			End:   30120,

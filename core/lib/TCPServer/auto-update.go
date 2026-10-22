@@ -10,7 +10,7 @@ import (
 // autoUpdateSubscriptions refreshes groups whose provider sent a
 // profile-update-interval header, like Happ does.
 func (s *Server) autoUpdateSubscriptions() {
-	command_handler := cmd.Cmd{DB: s.DB, BroadCast: s.BroadCast, AppConfig: s.appConfig}
+	command_handler := cmd.Cmd{DB: s.DB, BroadCast: s.BroadCast, Reply: func([]byte) {}, AppConfig: s.appConfig}
 	// failed updates don't move LastUpdated, so remember attempts to avoid
 	// retrying every minute
 	last_attempt := map[int]int64{}

@@ -1,18 +1,22 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"log"
 	"os"
+	"sync/atomic"
 	"time"
 
+	"github.com/AnotherProksY/Happ-TUI/cli"
 	mainmodel "github.com/AnotherProksY/Happ-TUI/components/MainModel"
 	"github.com/AnotherProksY/Happ-TUI/global"
 	appconfig "github.com/AnotherProksY/Happ-TUI/lib/AppConfig"
 	connection "github.com/AnotherProksY/Happ-TUI/lib/Connection"
 	notif_publisher "github.com/AnotherProksY/Happ-TUI/lib/NotifPublisher"
 	servercmds "github.com/AnotherProksY/Happ-TUI/lib/ServerCommands"
+	servernotifs "github.com/AnotherProksY/Happ-TUI/lib/ServerNotifs"
 	sharedtypes "github.com/AnotherProksY/Happ-TUI/shared_types"
 	"github.com/AnotherProksY/Happ-TUI/utils"
 
@@ -23,6 +27,28 @@ import (
 )
 
 func main() {
+	if len(os.Args) > 1 {
+		switch os.Args[1] {
+		case "version":
+			fmt.Println("happ-tui", global.Version)
+			return
+		case "die":
+			os.Exit(die())
+		case "status", "up", "down", "toggle", "logs":
+			os.Exit(cli.Run(os.Args[1], os.Args[2:]))
+		case "help", "-h", "--help":
+			cli.Usage(os.Stdout)
+			return
+		default:
+			fmt.Fprintf(os.Stderr, "unknown command %q\n\n", os.Args[1])
+			cli.Usage(os.Stderr)
+			os.Exit(2)
+		}
+	}
+	runTUI()
+}
+
+func runTUI() {
 	// keep early messages (home directory lookup) off the terminal
 	log.SetOutput(io.Discard)
 	log.SetOutput(&lumberjack.Logger{
@@ -35,49 +61,39 @@ func main() {
 	log.SetPrefix("debug: ")
 	log.SetFlags(log.LstdFlags | log.Lmsgprefix)
 
-	if len(os.Args) > 1 && os.Args[1] == "version" {
-		fmt.Println("happ-tui", global.Version)
-		return
-	}
-	if err := utils.MigrateLegacyDirs(); err != nil {
-		log.Println("failed to migrate bushuray directories:", err)
-	}
-	appconfig.LoadConfig()
-	port := appconfig.GetConfig().CoreTCPPort
-
-	if len(os.Args) > 1 && os.Args[1] == "die" {
-		die(port)
-		return
-	}
-
-	C := connection.ConnectionHandler{}
-	C.Init("127.0.0.1", port)
-
-	err := C.GetConnection()
+	C, err := connection.ConnectOrSpawn(utils.SpawnCore)
 	if err != nil {
-		fmt.Println("core was not found at", port, "trying to spawn")
-		err := utils.SpawnCore()
-		if err != nil {
-			fmt.Println("failed to spawn core:", err)
-			return
-		}
-		time.Sleep(1000 * time.Millisecond)
-		err = C.GetConnection()
-		if err != nil {
-			fmt.Println("failed to connect to core:", err)
-			return
-		}
-	} else {
-		fmt.Println("connection established")
+		fmt.Fprintln(os.Stderr, "happ-tui:", err)
+		os.Exit(1)
 	}
+
+	// notifications are dropped until the UI exists; it asks for the full
+	// state right after starting
+	var program atomic.Pointer[tea.Program]
+	C.Start(func(msg sharedtypes.TcpMessage) {
+		if program.Load() != nil {
+			servernotifs.HandleNotification(msg)
+		}
+	})
+
+	var config appconfig.AppConfig
+	if err := C.Request(5*time.Second, "get-config", struct{}{}, &config); err != nil {
+		fmt.Fprintln(os.Stderr, "happ-tui: failed to get settings from the core:", err)
+		os.Exit(1)
+	}
+	appconfig.SetConfig(config)
 
 	zone.NewGlobal()
 	p := tea.NewProgram(mainmodel.InitModel(), tea.WithAltScreen(), tea.WithMouseCellMotion())
-
-	go C.HandleConnection(p)
-	servercmds.Init(&C)
-	servercmds.GetApplicationState()
 	notif_publisher.Init(p)
+	program.Store(p)
+	go func() {
+		<-C.Done()
+		p.Quit()
+	}()
+
+	servercmds.Init(C)
+	servercmds.GetApplicationState()
 
 	if _, err := p.Run(); err != nil {
 		fmt.Printf("Error %v\n", err)
@@ -85,25 +101,22 @@ func main() {
 	}
 }
 
-func die(port int) {
-	C := connection.ConnectionHandler{}
-	C.Init("127.0.0.1", port)
-
-	if err := C.GetConnection(); err != nil {
+func die() int {
+	C, err := connection.Dial()
+	if err != nil {
 		fmt.Println("Happ-TUI is not running")
-		return
+		return 0
 	}
 	defer C.Close()
+	C.Start(nil)
 
-	if err := C.Send(servercmds.CreateJsonCommand("die", sharedtypes.DieData{})); err != nil {
-		fmt.Println("failed to stop Happ-TUI:", err)
-		return
-	}
-
-	if err := C.WaitForClose(); err != nil {
-		fmt.Println("failed while waiting for Happ-TUI to stop:", err)
-		return
+	// the core exits without answering, so a closed connection means success
+	err = C.Request(10*time.Second, "die", sharedtypes.DieData{}, nil)
+	if err != nil && !errors.Is(err, connection.ErrClosed) {
+		fmt.Fprintln(os.Stderr, "failed to stop Happ-TUI:", err)
+		return 1
 	}
 
 	fmt.Println("Happ-TUI has stopped successfully")
+	return 0
 }

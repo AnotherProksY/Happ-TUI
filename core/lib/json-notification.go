@@ -17,3 +17,12 @@ func CreateJsonNotification(msg string, obj any) []byte {
 	}
 	return json_data
 }
+
+// CreateJsonReply makes the answer to a command that carried request_id.
+func CreateJsonReply(msg string, request_id string, obj any) []byte {
+	json_data, err := json.Marshal(structs.Reply{Msg: msg, RequestId: request_id, Data: obj})
+	if err != nil {
+		log.Fatalf("failed to parse json trying to send a reply %v %s", obj, err)
+	}
+	return json_data
+}

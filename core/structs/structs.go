@@ -159,8 +159,80 @@ type ProfileID struct {
 }
 
 type TCPMessage struct {
-	Msg  string          `json:"msg"`
-	Data json.RawMessage `json:"data"`
+	Msg       string          `json:"msg"`
+	RequestId string          `json:"request_id,omitempty"`
+	Data      json.RawMessage `json:"data"`
+}
+
+// Reply answers a command that carried request_id, to that client only.
+type Reply struct {
+	Msg       string `json:"msg"`
+	RequestId string `json:"request_id"`
+	Data      any    `json:"data"`
+}
+
+// UpData connects to Profile, or to the last used profile when it is nil.
+type UpData struct {
+	Profile *ProfileID `json:"profile,omitempty"`
+	Tun     bool       `json:"tun"`
+}
+
+// ToggleData is a click on a widget, see Cmd.Toggle.
+type ToggleData struct {
+	Profile *ProfileID `json:"profile,omitempty"`
+	Tun     bool       `json:"tun"`
+}
+
+// StatusReport is what `happ-tui status --json` prints. Numbers are raw
+// (bytes, bytes/s, unix seconds); null means unknown or not applicable.
+type StatusReport struct {
+	Core           string             `json:"core"`
+	Root           bool               `json:"root"`
+	Service        bool               `json:"service"`
+	Connection     string             `json:"connection"`
+	Tun            bool               `json:"tun"`
+	Profile        *StatusProfile     `json:"profile"`
+	ConnectedSince *int64             `json:"connected_since"`
+	Traffic        *TrafficCounters   `json:"traffic"`
+	Rate           *TrafficCounters   `json:"rate"`
+	LatencyMs      *int               `json:"latency_ms"`
+	Subscription   *SubscriptionUsage `json:"subscription"`
+	LastError      *string            `json:"last_error"`
+}
+
+type StatusProfile struct {
+	GroupId  int    `json:"group_id"`
+	Id       int    `json:"id"`
+	Name     string `json:"name"`
+	Group    string `json:"group"`
+	Protocol string `json:"protocol"`
+	Address  string `json:"address"`
+}
+
+type TrafficCounters struct {
+	Up   int64 `json:"up"`
+	Down int64 `json:"down"`
+}
+
+type SubscriptionUsage struct {
+	Used   int64 `json:"used"`
+	Total  int64 `json:"total"`
+	Expire int64 `json:"expire"`
+}
+
+// ClientConfig is the part of the config that clients need.
+type ClientConfig struct {
+	SocksPort    int  `json:"socks-port"`
+	HttpPort     int  `json:"http-port"`
+	NoBackground bool `json:"no-background"`
+	Root         bool `json:"root"`
+	Service      bool `json:"service"`
+}
+
+// ErrorReply is the data of an "error" reply. Key is stable for scripts.
+type ErrorReply struct {
+	Key     string `json:"key"`
+	Message string `json:"message"`
 }
 
 type Message[T any] struct {
@@ -169,9 +241,12 @@ type Message[T any] struct {
 }
 
 type ProxyStatus struct {
-	Connection   string  `json:"connection"`
-	IsTunEnabled bool    `json:"is_tun_enabled"`
-	Profile      Profile `json:"profile"`
+	// Connection is "connecting", "connected", "disconnected" or "error".
+	Connection     string  `json:"connection"`
+	IsTunEnabled   bool    `json:"is_tun_enabled"`
+	Profile        Profile `json:"profile"`
+	ConnectedSince int64   `json:"connected_since,omitzero"`
+	LastError      string  `json:"last_error,omitzero"`
 }
 
 type (

@@ -54,6 +54,7 @@ type ProfileID struct {
 }
 
 type Message[T any] struct {
-	Msg  string `json:"msg"`
-	Data T      `json:"data"`
+	Msg       string `json:"msg"`
+	RequestId string `json:"request_id,omitempty"`
+	Data      T      `json:"data"`
 }

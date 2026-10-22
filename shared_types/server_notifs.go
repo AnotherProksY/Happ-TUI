@@ -3,8 +3,9 @@ package sharedtypes
 import "encoding/json"
 
 type TcpMessage struct {
-	Msg  string          `json:"msg"`
-	Data json.RawMessage `json:"data"`
+	Msg       string          `json:"msg"`
+	RequestId string          `json:"request_id,omitempty"`
+	Data      json.RawMessage `json:"data"`
 }
 
 type ServerNotification interface {

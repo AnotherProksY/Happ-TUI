@@ -4,51 +4,65 @@ import (
 	"bufio"
 	"encoding/binary"
 	"encoding/json"
-	"fmt"
 	cmd "github.com/AnotherProksY/Happ-TUI/core/commands"
 	"github.com/AnotherProksY/Happ-TUI/core/db"
+	"github.com/AnotherProksY/Happ-TUI/core/lib"
 	"github.com/AnotherProksY/Happ-TUI/core/lib/config"
 	proxy "github.com/AnotherProksY/Happ-TUI/core/lib/proxy/mainproxy"
 	"github.com/AnotherProksY/Happ-TUI/core/structs"
+	"github.com/AnotherProksY/Happ-TUI/core/utils"
 	"io"
 	"log"
 	"net"
-	"os"
 	"sync"
 )
 
 type Server struct {
-	clients              map[string]net.Conn
+	clients              map[*client]struct{}
 	DB                   *db.DB
 	mutex                sync.Mutex
 	proxy_manager        *proxy.ProxyManager
 	stop_sig             chan<- bool
-	coreTCPPort          int
 	removeFailedProfiles bool
 	appConfig            config.AppConfig
+}
+
+// client is one connection to the control socket. Broadcasts and direct
+// replies both go through write, so frames never interleave.
+type client struct {
+	conn    *net.UnixConn
+	uid     int
+	writeMu sync.Mutex
+}
+
+func (c *client) write(msg []byte) error {
+	c.writeMu.Lock()
+	defer c.writeMu.Unlock()
+	packet := make([]byte, 4+len(msg))
+	binary.BigEndian.PutUint32(packet[:4], uint32(len(msg)))
+	copy(packet[4:], msg)
+	return writeFull(c.conn, packet)
 }
 
 func NewServer(database *db.DB, proxy_manager *proxy.ProxyManager, stop_sig chan<- bool, appConfig config.AppConfig) *Server {
 	return &Server{
 		DB:                   database,
-		clients:              make(map[string]net.Conn),
+		clients:              make(map[*client]struct{}),
 		proxy_manager:        proxy_manager,
 		stop_sig:             stop_sig,
-		coreTCPPort:          appConfig.CoreTCPPort,
 		removeFailedProfiles: appConfig.RemoveFailedProfiles,
 		appConfig:            appConfig,
 	}
 }
 
 func (s *Server) Start() {
-	listen, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", s.coreTCPPort))
-
+	socket_path := utils.SocketPath()
+	listen, err := utils.ListenSocket(socket_path)
 	if err != nil {
-		log.Fatal(err)
-		os.Exit(0)
+		log.Fatal("failed to listen on ", socket_path, ": ", err)
 	}
 
-	log.Println("server is listening on port", s.coreTCPPort)
+	log.Println("listening on", socket_path, "for uid", utils.AllowedUID(), "and root")
 
 	go s.handleStatusChange()
 	go s.handleTestResults()
@@ -56,18 +70,26 @@ func (s *Server) Start() {
 
 	go func() {
 		for {
-			conn, err := listen.Accept()
-
+			conn, err := listen.AcceptUnix()
 			if err != nil {
 				log.Printf("failed to accept connection: %v", err)
+				continue
+			}
+
+			uid, err := utils.PeerUID(conn)
+			c := &client{conn: conn, uid: uid}
+			if err != nil || (uid != 0 && uid != utils.AllowedUID()) {
+				log.Println("rejected connection from uid", uid, err)
+				c.write(lib.CreateJsonReply("error", "", structs.ErrorReply{Key: "access-denied", Message: "access denied"}))
+				conn.Close()
+				continue
 			}
 
 			s.mutex.Lock()
-			clientID := conn.RemoteAddr().String()
-			s.clients[clientID] = conn
+			s.clients[c] = struct{}{}
 			s.mutex.Unlock()
 
-			go s.handleConnection(conn, clientID)
+			go s.handleConnection(c)
 		}
 	}()
 }
@@ -85,32 +107,33 @@ func writeFull(conn net.Conn, data []byte) error {
 
 func (s *Server) BroadCast(msg []byte) {
 	s.mutex.Lock()
-	defer s.mutex.Unlock()
+	clients := make([]*client, 0, len(s.clients))
+	for c := range s.clients {
+		clients = append(clients, c)
+	}
+	s.mutex.Unlock()
 
-	packet := make([]byte, 4+len(msg))
-	binary.BigEndian.PutUint32(packet[:4], uint32(len(msg)))
-	copy(packet[4:], msg)
-
-	for clientID, conn := range s.clients {
-		if err := writeFull(conn, packet); err != nil {
-			log.Printf("Error sending to %s: %v", clientID, err)
-			conn.Close()
-			delete(s.clients, clientID)
+	for _, c := range clients {
+		if err := c.write(msg); err != nil {
+			log.Printf("Error sending to uid %d: %v", c.uid, err)
+			c.conn.Close()
+			s.mutex.Lock()
+			delete(s.clients, c)
+			s.mutex.Unlock()
 		}
 	}
 }
 
-func (s *Server) handleConnection(conn net.Conn, clientID string) {
+func (s *Server) handleConnection(c *client) {
 	defer func() {
-		conn.Close()
+		c.conn.Close()
 		s.mutex.Lock()
-		delete(s.clients, clientID)
+		delete(s.clients, c)
 		s.mutex.Unlock()
-		log.Println("Disconnected:", clientID)
 	}()
 
-	command_handler := cmd.Cmd{DB: s.DB, Conn: conn, BroadCast: s.BroadCast, AppConfig: s.appConfig}
-	reader := bufio.NewReader(conn)
+	conn_handler := cmd.Cmd{DB: s.DB, BroadCast: s.BroadCast, Reply: func(msg []byte) { c.write(msg) }, PeerUID: c.uid, AppConfig: s.appConfig}
+	reader := bufio.NewReader(c.conn)
 
 	for {
 		lengthBuf := make([]byte, 4)
@@ -145,8 +168,16 @@ func (s *Server) handleConnection(conn net.Conn, clientID string) {
 			return
 		}
 
+		// a copy per message, so handlers running in goroutines keep their request id
+		command_handler := conn_handler
+		command_handler.RequestId = raw_tcp_message.RequestId
+
 		switch raw_tcp_message.Msg {
 		case "die":
+			if utils.IsServiceMode() && c.uid != 0 {
+				command_handler.ReplyError("service-mode", "the core runs as a system service, stop it with: sudo systemctl stop happ-tui-core")
+				continue
+			}
 			s.stop_sig <- true
 		case "add-profiles":
 			var data structs.AddProfilesData
@@ -243,6 +274,31 @@ func (s *Server) handleConnection(conn net.Conn, clientID string) {
 			}
 			command_handler.DisableTun(data, s.proxy_manager)
 
+		case "get-status":
+			command_handler.GetStatus(s.proxy_manager)
+
+		case "up":
+			var data structs.UpData
+			if err := json.Unmarshal(raw_tcp_message.Data, &data); err != nil {
+				command_handler.ReplyError("bad-request", "invalid body for up")
+				continue
+			}
+			go command_handler.Up(data, s.proxy_manager)
+
+		case "down":
+			go command_handler.Down(s.proxy_manager)
+
+		case "toggle":
+			var data structs.ToggleData
+			if err := json.Unmarshal(raw_tcp_message.Data, &data); err != nil {
+				command_handler.ReplyError("bad-request", "invalid body for toggle")
+				continue
+			}
+			go command_handler.Toggle(data, s.proxy_manager)
+
+		case "get-config":
+			command_handler.GetConfig()
+
 		case "is-root":
 			var data structs.IsRootData
 			if err := json.Unmarshal(raw_tcp_message.Data, &data); err != nil {
@@ -261,6 +317,9 @@ func (s *Server) handleConnection(conn net.Conn, clientID string) {
 
 		default:
 			log.Println("Message not supported")
+			if raw_tcp_message.RequestId != "" {
+				command_handler.ReplyError("unknown-command", "unknown command "+raw_tcp_message.Msg)
+			}
 		}
 	}
 }

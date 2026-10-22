@@ -172,6 +172,15 @@ func (db *DB) UpdateLatestConnectedProfile(group_id int, id int) error {
 	return err
 }
 
+// GetLatestConnectedProfileID is zero when no profile was connected yet.
+func (db *DB) GetLatestConnectedProfileID() (structs.ProfileID, error) {
+	db_config, err := db.loadDBConfig()
+	if err != nil {
+		return structs.ProfileID{}, err
+	}
+	return db_config.LatestConnectedProfile, nil
+}
+
 func (db *DB) GetLatestConnectedProfile() (structs.Profile, error) {
 	latest_profile := structs.Profile{}
 	db_config, err := db.loadDBConfig()

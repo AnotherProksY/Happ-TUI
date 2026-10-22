@@ -1,56 +1,19 @@
 package appconfig
 
-import (
-	"encoding/json"
-	"fmt"
-	"log"
-	"os"
-	"path/filepath"
-
-	"github.com/AnotherProksY/Happ-TUI/utils"
-)
-
+// AppConfig is the part of the config the TUI needs. The core is the only
+// process that reads the config file; the TUI gets these values from it with
+// get-config, so a system service and the TUI never disagree.
 type AppConfig struct {
-	SocksPort             int               `json:"socks-port"`
-	HttpPort              int               `json:"http-port"`
-	CoreTCPPort           int               `json:"core-tcp-port"`
-	TestPortRange         PortRange         `json:"test-port-range"`
-	TestURL               string            `json:"test-url"`
-	SubscriptionUserAgent string            `json:"subscription-user-agent"`
-	SubscriptionClient    string            `json:"subscription-client"`
-	HWID                  string            `json:"hwid"`
-	SubscriptionHeaders   map[string]string `json:"subscription-headers"`
-	NoBackground          bool              `json:"no-background,omitzero"`
-	AutoConnectOnStart    bool              `json:"auto-connect-on-start,omitzero"`
-}
-
-type PortRange struct {
-	Start int `json:"start"`
-	End   int `json:"end"`
+	SocksPort    int  `json:"socks-port"`
+	HttpPort     int  `json:"http-port"`
+	NoBackground bool `json:"no-background"`
+	Root         bool `json:"root"`
+	Service      bool `json:"service"`
 }
 
 var is_config_loaded bool = false
 
-var application_configuration AppConfig = defaultConfig()
-
-func defaultConfig() AppConfig {
-	return AppConfig{
-		SocksPort:   3090,
-		HttpPort:    3091,
-		CoreTCPPort: 4897,
-		TestPortRange: PortRange{
-			Start: 3095,
-			End:   30120,
-		},
-		NoBackground:          false,
-		AutoConnectOnStart:    false,
-		SubscriptionUserAgent: "",
-		SubscriptionClient:    "happ",
-		HWID:                  "",
-		SubscriptionHeaders:   map[string]string{},
-		TestURL:               "https://cp.cloudflare.com",
-	}
-}
+var application_configuration AppConfig
 
 func GetConfig() AppConfig {
 	if !is_config_loaded {
@@ -59,48 +22,7 @@ func GetConfig() AppConfig {
 	return application_configuration
 }
 
-func LoadConfig() {
-	config, err := readConfig()
-	if err != nil {
-		log.Println("failed to read config file:", err, "using default config")
-	}
+func SetConfig(config AppConfig) {
 	application_configuration = config
 	is_config_loaded = true
-}
-
-func readConfig() (AppConfig, error) {
-	var default_config AppConfig = defaultConfig()
-	dir_path, err := utils.ConfigDir()
-	if err != nil {
-		return default_config, err
-	}
-	var config_path = filepath.Join(dir_path, "config.json")
-	file_bytes, err := os.ReadFile(config_path)
-	if err == nil {
-		if err := json.Unmarshal(file_bytes, &default_config); err != nil {
-			return default_config, fmt.Errorf("failed to parse config file, invalid json")
-		}
-		return default_config, nil
-	}
-
-	if !os.IsNotExist(err) {
-		return default_config, fmt.Errorf("failed to read config file")
-	}
-
-	if err := utils.EnsureDir(dir_path); err != nil {
-		return default_config, fmt.Errorf("config file was not found and failed to create config directory %s: %w", dir_path, err)
-	}
-
-	default_config_json, err := json.MarshalIndent(defaultConfig(), "", " ")
-
-	if err != nil {
-		return default_config, fmt.Errorf("config file was not found and failed to parse default config: %w", err)
-	}
-
-	if err := os.WriteFile(config_path, default_config_json, 0666); err != nil {
-		return default_config, fmt.Errorf("config file was not found and failed to write default config: %w", err)
-	}
-	utils.ChownToInvokingUser(config_path)
-
-	return default_config, nil
 }

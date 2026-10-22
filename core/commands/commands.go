@@ -6,12 +6,14 @@ import (
 	"github.com/AnotherProksY/Happ-TUI/core/lib/config"
 	"github.com/AnotherProksY/Happ-TUI/core/structs"
 	"log"
-	"net"
 )
 
 type Cmd struct {
-	Conn      net.Conn
 	BroadCast func([]byte)
+	// Reply writes to the connection the current command came from.
+	Reply     func([]byte)
+	RequestId string
+	PeerUID   int
 	DB        *db.DB
 	AppConfig config.AppConfig
 }
@@ -85,4 +87,14 @@ func (cmd *Cmd) fatal(msg string) {
 
 func (cmd *Cmd) send(msg string, obj any) {
 	cmd.BroadCast(lib.CreateJsonNotification(msg, obj))
+}
+
+// reply answers the requesting client only.
+func (cmd *Cmd) reply(msg string, obj any) {
+	cmd.Reply(lib.CreateJsonReply(msg, cmd.RequestId, obj))
+}
+
+// ReplyError answers the requesting client with an error that has a stable key.
+func (cmd *Cmd) ReplyError(key string, message string) {
+	cmd.reply("error", structs.ErrorReply{Key: key, Message: message})
 }
