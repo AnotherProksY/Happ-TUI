@@ -26,6 +26,7 @@ type ProxyManager struct {
 	TestResultChannel chan TestResult
 	testGeneration    atomic.Uint64
 	portPool          *portpool.PortPool
+	stats             statsPoller
 }
 
 func (p *ProxyManager) Init(appConfig config.AppConfig) {
@@ -106,6 +107,7 @@ func (p *ProxyManager) connect(profile structs.Profile, tun_mode bool) error {
 			return fmt.Errorf("%w: disable previous TUN mode: %v", ErrTun, err)
 		}
 	}
+	p.stats.stop()
 	if p.xray_core.IsRunning() {
 		p.xray_core.Stop()
 	}
@@ -138,13 +140,20 @@ func (p *ProxyManager) connect(profile structs.Profile, tun_mode bool) error {
 	// Full Xray configs from a JSON subscription bring the provider's own dns
 	// and routing, which are kept as they are, like Happ does.
 	isXrayJSON := builder.IsXrayJSON(profile.Uri)
-	builder := builder.NewBuilder(xrayCoreConfig)
+	config_builder := builder.NewBuilder(xrayCoreConfig)
 	if !isXrayJSON {
-		if err := builder.ApplyDNS(p.appConfig.Dns); err != nil {
+		if err := config_builder.ApplyDNS(p.appConfig.Dns); err != nil {
 			return fmt.Errorf("%w: %v", ErrProfile, err)
 		}
 	}
-	xrayConfig := builder.Build()
+	apiPort, err := utils.FreeLocalPort()
+	if err != nil {
+		return fmt.Errorf("%w: no free port for the stats API: %v", ErrXray, err)
+	}
+	xrayConfig, proxyTags, err := builder.AddStats(config_builder.Build(), apiPort)
+	if err != nil {
+		return fmt.Errorf("%w: %v", ErrProfile, err)
+	}
 
 	if tun_mode {
 		log.Println("enabling TUN with Xray TProxy on port 13345; no TUN network interface will be created")
@@ -191,6 +200,7 @@ func (p *ProxyManager) connect(profile structs.Profile, tun_mode bool) error {
 		log.Println("successfully enabled tun")
 	}
 
+	p.stats.start(apiPort, proxyTags)
 	p.status = structs.ProxyStatus{
 		Connection:     "connected",
 		IsTunEnabled:   tun_mode,
@@ -212,6 +222,7 @@ func (p *ProxyManager) connect(profile structs.Profile, tun_mode bool) error {
 				p.mu.Unlock()
 				return
 			}
+			p.stats.stop()
 			if p.status.IsTunEnabled || tunStateExists() {
 				if err := p.disableTun(); err != nil {
 					log.Println("failed to clean TUN mode after Xray exit:", err)
@@ -248,6 +259,7 @@ func (p *ProxyManager) SetLastError(message string) {
 func (p *ProxyManager) Stop() error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
+	p.stats.stop()
 	p.xray_core.Stop()
 
 	var cleanupErr error
@@ -269,7 +281,8 @@ func (p *ProxyManager) GetStatus() structs.ProxyStatus {
 }
 
 // Traffic is the traffic through the proxy outbounds since connecting and
-// its current rate, or nil while unknown.
+// its current rate, or nil while unknown. It doesn't take p.mu, so it can be
+// called while a status change is announced.
 func (p *ProxyManager) Traffic() (*structs.TrafficCounters, *structs.TrafficCounters) {
-	return nil, nil
+	return p.stats.get()
 }

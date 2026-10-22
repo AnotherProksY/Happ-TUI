@@ -69,3 +69,28 @@ func TestProfileConfigSanitizesJSONProfiles(t *testing.T) {
 		t.Errorf("access log path must not reach xray")
 	}
 }
+
+func TestAddStats(t *testing.T) {
+	sanitized, _ := Sanitize([]byte(hostileConfig))
+	out, tags, err := AddStats(sanitized, 4555)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(tags) != 1 || tags[0] != "proxy" {
+		t.Errorf("proxy tags = %v", tags)
+	}
+	var config map[string]any
+	json.Unmarshal(out, &config)
+	services := config["api"].(map[string]any)["services"].([]any)
+	if len(services) != 1 || services[0] != "StatsService" {
+		t.Errorf("only StatsService may be enabled: %v", services)
+	}
+	system := config["policy"].(map[string]any)["system"].(map[string]any)
+	if system["statsOutboundUplink"] != true || system["statsOutboundDownlink"] != true {
+		t.Errorf("outbound counters not enabled: %v", system)
+	}
+	first := config["routing"].(map[string]any)["rules"].([]any)[0].(map[string]any)
+	if first["outboundTag"] != apiTag {
+		t.Errorf("api rule must come first: %v", first)
+	}
+}
