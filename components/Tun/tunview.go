@@ -36,7 +36,7 @@ func (m Model) View() string {
 			lipgloss.Left,
 			bg_style.Render("Core is not running as root, do you want to kill it so you can start again with "),
 			sudo_happ_tui,
-			bg_style.Render(" ?"))
+			bg_style.Render(" ? (TUN without sudo: install.sh --service)"))
 
 	dialog := dialog_style.
 		Width(m.Width).

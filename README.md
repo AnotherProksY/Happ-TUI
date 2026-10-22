@@ -12,14 +12,20 @@ tar -xzf happ-tui-<version>-linux-x86_64.tar.gz
 cd happ-tui-<version>
 sudo ./install.sh
 ```
-This puts `happ-tui` into `/usr/local/bin` and its core, `xray`, `v2parser` and the geo files into `/usr/local/lib/happ-tui`. Set `PREFIX` to install elsewhere, e.g. `sudo PREFIX=/opt/happ-tui ./install.sh`. On Fedora Atomic and other image based systems `/usr/local` is writable, so no layering or reboot is needed.
+This puts `happ-tui` into `/usr/local/bin` and its core, `xray`, `v2parser` and the geo files into `/usr/local/lib/happ-tui`, and creates the system user `happ-tui-xray` (see [TUN mode](#tun-mode)). Set `PREFIX` to install elsewhere, e.g. `sudo PREFIX=/opt/happ-tui ./install.sh`. On Fedora Atomic and other image based systems `/usr/local` is writable, so no layering or reboot is needed.
 
-To remove it: `sudo /usr/local/lib/happ-tui/uninstall.sh`. Your config and groups are kept.
+To run the core as a [system service](#system-service), so TUN mode and the [CLI](#cli) work without `sudo`:
+```
+sudo ./install.sh --service            # for the user running sudo
+sudo ./install.sh --service --user NAME
+```
+
+To remove it: `sudo /usr/local/lib/happ-tui/uninstall.sh`. Your config and groups are kept; `--purge` also deletes the service's copy in `/etc/happ-tui` and `/var/lib/happ-tui`.
 
 ### How to use
 ```
 happ-tui                        # start (the core is started in the background)
-sudo /usr/local/bin/happ-tui    # start with TUN mode available
+sudo /usr/local/bin/happ-tui    # start with TUN mode available (not needed with the service)
 happ-tui die                    # stop the core and close the connection
 happ-tui version
 ```
@@ -27,14 +33,59 @@ Press `a` to add a group with your subscription link (the name may stay empty, i
 
 On some distributions `sudo` doesn't search `/usr/local/bin`, hence the full path above.
 
+### CLI
+For scripts and status bar widgets. None of these need a terminal or write files; errors go to stderr with a non-zero exit code, and with `--json` also to stdout as `{"error":{"key":"…","message":"…"}}`.
+```
+happ-tui status [--json]                  # the state, see below
+happ-tui status --json --watch [--interval 2s]
+                                          # a line on every change, and every interval while connected
+happ-tui up [--tun] [--profile GROUP:ID]  # connect, by default to the last used profile
+happ-tui down                             # disconnect (TUN off)
+happ-tui toggle [--tun]                   # for a click on a widget
+happ-tui logs [-n 200] [-f]               # the core's log
+```
+- `up --tun`: if TUN can't be enabled (the core isn't root, an nftables error) the proxy connection is kept, the command fails, and the reason stays in `last_error`.
+- `toggle --tun`: disconnected → connect with TUN; connected without TUN → enable TUN; connected with TUN → disconnect. `toggle` without `--tun`: connected in any way → disconnect, otherwise connect.
+- `status --watch` never ends on its own: when the core goes away it prints `{"core":"stopped"}` and continues once it is back.
+- Error keys: `core-stopped`, `access-denied`, `no-last-profile`, `profile-not-found`, `profile-invalid`, `not-root`, `tun-failed`, `xray-failed`, `timeout`, `service-mode`.
+
+`status --json` (numbers are raw: bytes, bytes/s, unix seconds; `null` means unknown):
+```json
+{
+  "core": "running", "root": true, "service": true,
+  "connection": "connected", "tun": true,
+  "profile": {"group_id": 1, "id": 12, "name": "🇩🇪 Germany", "group": "Provider", "protocol": "vless", "address": "de1.example.com"},
+  "connected_since": 1792630000,
+  "traffic": {"up": 12345678, "down": 987654321},
+  "rate": {"up": 1200, "down": 54000},
+  "latency_ms": 84,
+  "subscription": {"used": 123456789, "total": 107374182400, "expire": 1795000000},
+  "last_error": null
+}
+```
+`connection` is `connecting`, `connected`, `disconnected` or `error`. When disconnected, `profile` is the one a connect would use. `traffic` counts what went through the VPN outbounds since connecting, `rate` is averaged over about 5 s, and `latency_ms` is the profile's last test.
+
+A waybar module built on `status --watch` is in [`docs/waybar`](docs/waybar).
+
+### System service
+With `install.sh --service` the core runs as root in `happ-tui-core.service` for one user. `happ-tui` and the CLI started as that user attach to it, and TUN mode works without `sudo`.
+- The service keeps its own data: config in `/etc/happ-tui/config.json` (0600), groups in `/var/lib/happ-tui` (0700, they contain subscription links), logs in journald. It never reads or writes your home directory (`ProtectHome=yes`); installing it copies your config and groups there once, and the files in your home stay for when the service is turned off.
+- Groups, subscriptions and connections are managed from `happ-tui` or the CLI as usual. Ports and DNS are changed with `sudo $EDITOR /etc/happ-tui/config.json` and `sudo systemctl restart happ-tui-core`.
+- Only root and that user may use the control socket `/run/happ-tui/core.sock` (checked with `SO_PEERCRED`). `happ-tui die` is refused; stop it with `sudo systemctl stop happ-tui-core`.
+- If the core stops or crashes with TUN on, `ExecStopPost` removes the TUN rules, so the network doesn't stay pointed at a dead port.
+
 ### Files
 | What | Where |
 | --- | --- |
-| Config | `~/.config/happ-tui/config.json` |
-| Groups and profiles | `~/.local/share/happ-tui/` |
-| Logs | `~/.local/state/happ-tui/happ-tui.log` and `core.log` |
+| What | Without the service | With the service |
+| --- | --- | --- |
+| Config | `~/.config/happ-tui/config.json` | `/etc/happ-tui/config.json` |
+| Groups and profiles | `~/.local/share/happ-tui/` | `/var/lib/happ-tui/` |
+| Core log | `~/.local/state/happ-tui/core.log` | journald (`journalctl -u happ-tui-core`) |
+| TUI log | `~/.local/state/happ-tui/happ-tui.log` | the same |
+| Control socket | `$XDG_RUNTIME_DIR/happ-tui/core.sock` (`/run/happ-tui/core.sock` with `sudo`) | `/run/happ-tui/core.sock` |
 
-On the first start the config and groups of Bushuray (`~/.config/bushuray`, `~/.local/share/bushuray`) are copied over. When started with `sudo`, files in your home directory are still owned by you.
+Only the core reads the config; the TUI gets what it needs from the core. On the first start the config and groups of Bushuray (`~/.config/bushuray`, `~/.local/share/bushuray`) are copied over. When started with `sudo`, files in your home directory are still owned by you.
 
 ### Configuration
 The config file is created with the following template:
@@ -42,7 +93,6 @@ The config file is created with the following template:
 {
    "socks-port": 3090,
    "http-port": 3091,
-   "core-tcp-port": 4897,
    "test-port-range": {
     "start": 3095,
     "end": 30120
@@ -100,14 +150,16 @@ What else is supported, like in Happ:
 Encrypted `happ://crypt...` links are not supported.
 
 ### TUN mode
-TUN mode sends the traffic of all applications to Xray, and the provider's routing decides what goes `direct` and what goes through the VPN. Start Happ-TUI with `sudo`, connect to a profile, then press `v`.
+TUN mode sends the traffic of all applications to Xray, and the provider's routing decides what goes `direct` and what goes through the VPN. With the [system service](#system-service) just connect and press `v` (or `happ-tui up --tun`); otherwise start Happ-TUI with `sudo` first.
 
 It uses TPROXY rather than a tun interface. The rules live in nftables tables of their own (`ip happ_tui` and `ip6 happ_tui`), so they don't clash with tailscale, firewalld or docker; without the `nft` command Happ-TUI falls back to iptables. What is not sent to Xray: private, CGNAT (tailscale) and local subnets, and tailscale's own packets (fwmark `0x80000`).
 - **DNS**: with JSON subscription profiles (and with `dns.mode` other than `system`) DNS queries leaving the machine are answered by Xray, using the provider's dns servers; queries to the local stub (`127.0.0.53`) and to tailscale's MagicDNS are left alone, so systemd-resolved and tailnet names keep working. Queries other than A/AAAA are refused.
 - **IPv6**: Xray only gets IPv4 here, so while TUN mode is on all IPv6 traffic leaving the machine is rejected (except loopback, link-local, multicast and `fc00::/7`, which includes tailscale) to avoid leaks. `sudo nft list table ip6 happ_tui` shows how much was blocked.
 - ICMP (`ping`) is not sent to Xray.
 
-Running as root raises security concerns, see [this issue](https://github.com/Keivan-sf/Bushuray-core/issues/10). Thanks to [@navidmafi](https://github.com/navidmafi) and [@jpegMushrum](https://github.com/jpegMushrum) for their help with the original TUN mode.
+TUN needs a root core, but Xray itself doesn't run as root: a root core runs Xray and v2parser as the system user `happ-tui-xray`, which owns nothing. In TUN mode Xray only gets the capabilities `CAP_NET_ADMIN` (transparent proxying, socket marks) and `CAP_NET_BIND_SERVICE` (answers to intercepted UDP such as DNS come from the original port); nftables tells its traffic apart by that user, so it doesn't loop back into Xray. Profile configs are filtered before they reach Xray: only outbounds, routing, dns, policy, observatory, fakedns and transport are kept, and log settings lose their file paths. The core adds its own stats API (StatsService only, on 127.0.0.1) for the traffic counters.
+
+Because `happ-tui-xray` must be able to run Xray, TUN mode needs the installed layout; binaries inside a home directory that only you can enter won't start. Thanks to [@navidmafi](https://github.com/navidmafi) and [@jpegMushrum](https://github.com/jpegMushrum) for their help with the original TUN mode.
 
 ### Building
 The back-end lives in [`core/`](core), vendored from Bushuray-core (see `core/UPSTREAM`). For development:
@@ -128,5 +180,7 @@ Releases are built by GitHub Actions ([`.github/workflows/release.yml`](.github/
 ### Debugging
 If something is not working as expected, look at the logs:
 ```
+happ-tui logs -f                       # works in both modes
 tail -f ~/.local/state/happ-tui/core.log
+journalctl -u happ-tui-core -f         # the service; needs sudo or the systemd-journal group
 ```
