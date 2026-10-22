@@ -19,9 +19,13 @@ const maxMigratedFileSize = 16 << 20
 // The source files stay, for when the service is turned off again.
 //
 // It runs as root on files in a home directory the user controls, so it
-// only copies regular files that belong to that user (so nothing the user
-// couldn't read already ends up served back to them), opens them without
-// following symlinks and checks they are still the files it looked at.
+// opens them without following symlinks and only copies regular files that
+// belong to the user, or to root (a core started with sudo created those),
+// with a single link: a hard link the user made to a file they can't read,
+// such as /etc/shadow, would have more. That way nothing the user couldn't
+// read already ends up served back to them. Each target is written to a
+// temporary name and renamed when complete, so a failure leaves nothing that
+// would block another attempt.
 func MigrateUserData(name string) error {
 	u, err := user.Lookup(name)
 	if err != nil {
@@ -43,7 +47,7 @@ func MigrateUserData(name string) error {
 			if err := os.MkdirAll(ServiceConfigDir, 0o700); err != nil {
 				return err
 			}
-			if err := copyUserFile(source, config_target, uid); err != nil {
+			if err := copyAtomically(config_target, func(tmp string) error { return copyUserFile(source, tmp, uid) }); err != nil {
 				errs = append(errs, err)
 			} else {
 				fmt.Println("copied", source, "to", config_target)
@@ -62,7 +66,7 @@ func MigrateUserData(name string) error {
 			if err := os.MkdirAll(ServiceDataDir, 0o700); err != nil {
 				return err
 			}
-			if err := copyUserTree(source, data_target, uid); err != nil {
+			if err := copyAtomically(data_target, func(tmp string) error { return copyUserTree(source, tmp, uid) }); err != nil {
 				errs = append(errs, err)
 			} else {
 				fmt.Println("copied", source, "to", data_target)
@@ -71,6 +75,16 @@ func MigrateUserData(name string) error {
 		}
 	}
 	return errors.Join(errs...)
+}
+
+func copyAtomically(target string, write func(tmp string) error) error {
+	tmp := target + ".migrating"
+	os.RemoveAll(tmp)
+	if err := write(tmp); err != nil {
+		os.RemoveAll(tmp)
+		return err
+	}
+	return os.Rename(tmp, target)
 }
 
 func copyUserTree(from string, to string, uid int) error {
@@ -105,8 +119,8 @@ func copyUserFile(from string, to string, uid int) error {
 		return err
 	}
 	stat, ok := info.Sys().(*syscall.Stat_t)
-	if !info.Mode().IsRegular() || !ok || int(stat.Uid) != uid {
-		return fmt.Errorf("%s is not a regular file owned by uid %d, refusing to copy it", from, uid)
+	if !info.Mode().IsRegular() || !ok || (int(stat.Uid) != uid && stat.Uid != 0) || stat.Nlink != 1 {
+		return fmt.Errorf("%s is not a regular file of uid %d or root with a single link, refusing to copy it", from, uid)
 	}
 	if info.Size() > maxMigratedFileSize {
 		return fmt.Errorf("%s is too large", from)

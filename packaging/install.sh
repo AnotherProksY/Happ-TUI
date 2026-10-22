@@ -45,6 +45,17 @@ if [ "$SERVICE" = yes ]; then
 	command -v systemctl >/dev/null 2>&1 || { echo "--service needs systemd" >&2; exit 1; }
 fi
 
+# Cores before v0.4 listen on TCP, which `happ-tui die` no longer speaks;
+# SIGTERM makes any core disconnect and remove its TUN rules before exiting.
+stop_old_cores() {
+	pkill -TERM -x 'happ-tui-core|bushuray-core' 2>/dev/null || return 0
+	for _ in 1 2 3 4 5 6 7 8 9 10; do
+		pgrep -x 'happ-tui-core|bushuray-core' >/dev/null 2>&1 || return 0
+		sleep 0.5
+	done
+	echo "a core didn't stop in time" >&2
+}
+
 # a running core keeps the old binaries and may hold TUN rules; stop it so
 # the new version is used on the next start. bushuray-core counts too: it
 # listens on the same port, and happ-tui would keep talking to it.
@@ -56,7 +67,8 @@ if [ -f "$UNIT" ] && systemctl is-active --quiet happ-tui-core; then
 fi
 if pgrep -x 'happ-tui-core|bushuray-core' >/dev/null 2>&1; then
 	echo "stopping the running core (the VPN connection will be closed)"
-	"$HERE/bin/happ-tui" die || true
+	"$HERE/bin/happ-tui" die >/dev/null 2>&1 || true
+	stop_old_cores
 fi
 
 install -Dm755 "$HERE/bin/happ-tui" "$PREFIX/bin/happ-tui"
@@ -80,11 +92,14 @@ if ! command -v nft >/dev/null 2>&1; then
 fi
 
 if [ "$SERVICE" = yes ]; then
-	sed -e "s|@LIBDIR@|$LIBDIR|g" -e "s|@USER@|$SERVICE_USER|g" "$LIBDIR/happ-tui-core.service" > "$UNIT"
-	chmod 644 "$UNIT"
 	# the service keeps its own copy in /etc/happ-tui and /var/lib/happ-tui;
 	# the files in the home directory stay for when the service is off
-	"$LIBDIR/happ-tui-core" migrate --user "$SERVICE_USER"
+	if ! "$LIBDIR/happ-tui-core" migrate --user "$SERVICE_USER"; then
+		echo "could not copy the config and groups of $SERVICE_USER; the service was not installed" >&2
+		exit 1
+	fi
+	sed -e "s|@LIBDIR@|$LIBDIR|g" -e "s|@USER@|$SERVICE_USER|g" "$LIBDIR/happ-tui-core.service" > "$UNIT"
+	chmod 644 "$UNIT"
 	systemctl daemon-reload
 	systemctl enable --now happ-tui-core
 	echo "the happ-tui-core service runs for $SERVICE_USER"

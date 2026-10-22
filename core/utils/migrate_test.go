@@ -34,7 +34,32 @@ func TestCopyUserTreeRefusesSymlinks(t *testing.T) {
 func TestCopyUserFileChecksOwner(t *testing.T) {
 	from := filepath.Join(t.TempDir(), "config.json")
 	os.WriteFile(from, []byte(`{}`), 0o644)
-	if err := copyUserFile(from, filepath.Join(t.TempDir(), "c"), os.Getuid()+1); err == nil {
-		t.Errorf("a file of another user must be refused")
+	if os.Getuid() != 0 {
+		if err := copyUserFile(from, filepath.Join(t.TempDir(), "c"), os.Getuid()+1); err == nil {
+			t.Errorf("a file of another user must be refused")
+		}
+	}
+	link := filepath.Join(t.TempDir(), "link")
+	if err := os.Link(from, link); err == nil {
+		if err := copyUserFile(from, filepath.Join(t.TempDir(), "c"), os.Getuid()); err == nil {
+			t.Errorf("a file with a second hard link must be refused")
+		}
+	}
+}
+
+func TestCopyAtomicallyLeavesNothingOnFailure(t *testing.T) {
+	target := filepath.Join(t.TempDir(), "db")
+	err := copyAtomically(target, func(tmp string) error {
+		os.Mkdir(tmp, 0o700)
+		return os.ErrPermission
+	})
+	if err == nil {
+		t.Fatal("the error must be returned")
+	}
+	if _, err := os.Lstat(target); err == nil {
+		t.Errorf("a failed copy must not leave the target")
+	}
+	if _, err := os.Lstat(target + ".migrating"); err == nil {
+		t.Errorf("a failed copy must not leave the temporary copy")
 	}
 }

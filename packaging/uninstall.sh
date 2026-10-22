@@ -27,13 +27,25 @@ if [ "$(id -u)" -ne 0 ]; then
 	exit 1
 fi
 
+# SIGTERM makes any core, also one from before v0.4 that `happ-tui die`
+# can't reach, disconnect and remove its TUN rules before exiting.
+stop_old_cores() {
+	pkill -TERM -x 'happ-tui-core|bushuray-core' 2>/dev/null || return 0
+	for _ in 1 2 3 4 5 6 7 8 9 10; do
+		pgrep -x 'happ-tui-core|bushuray-core' >/dev/null 2>&1 || return 0
+		sleep 0.5
+	done
+	echo "a core didn't stop in time" >&2
+}
+
 if [ -f "$UNIT" ]; then
 	systemctl disable --now happ-tui-core || true
 	rm -f "$UNIT"
 	systemctl daemon-reload
 fi
-if [ -x "$PREFIX/bin/happ-tui" ] && pgrep -x 'happ-tui-core|bushuray-core' >/dev/null 2>&1; then
-	"$PREFIX/bin/happ-tui" die || true
+if pgrep -x 'happ-tui-core|bushuray-core' >/dev/null 2>&1; then
+	[ -x "$PREFIX/bin/happ-tui" ] && "$PREFIX/bin/happ-tui" die >/dev/null 2>&1 || true
+	stop_old_cores
 fi
 
 rm -f "$PREFIX/bin/happ-tui"
