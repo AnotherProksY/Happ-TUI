@@ -10,7 +10,7 @@ if [ "$(id -u)" -ne 0 ]; then
 	exit 1
 fi
 
-if [ -x "$PREFIX/bin/happ-tui" ] && pgrep -x happ-tui-core >/dev/null 2>&1; then
+if [ -x "$PREFIX/bin/happ-tui" ] && pgrep -x 'happ-tui-core|bushuray-core' >/dev/null 2>&1; then
 	"$PREFIX/bin/happ-tui" die || true
 fi
 

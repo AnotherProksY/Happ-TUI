@@ -11,10 +11,11 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 
 # a running core keeps the old binaries and may hold TUN rules; stop it so
-# the new version is used on the next start
-if [ -x "$PREFIX/bin/happ-tui" ] && pgrep -x happ-tui-core >/dev/null 2>&1; then
-	echo "stopping running happ-tui (the VPN connection will be closed)"
-	"$PREFIX/bin/happ-tui" die || true
+# the new version is used on the next start. bushuray-core counts too: it
+# listens on the same port, and happ-tui would keep talking to it.
+if pgrep -x 'happ-tui-core|bushuray-core' >/dev/null 2>&1; then
+	echo "stopping the running core (the VPN connection will be closed)"
+	"$HERE/bin/happ-tui" die || true
 fi
 
 install -Dm755 "$HERE/bin/happ-tui" "$PREFIX/bin/happ-tui"
