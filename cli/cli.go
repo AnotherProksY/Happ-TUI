@@ -249,6 +249,32 @@ func watchStatus(interval time.Duration) int {
 	}
 }
 
+// logs prints the core's log from its in-memory buffer, which works for a
+// system service without access to journald.
 func logs(lines int, follow bool) int {
-	return output{}.fail(errors.New("logs are not available yet"))
+	c, err := connection.Dial()
+	if err != nil {
+		return output{}.fail(err)
+	}
+	defer c.Close()
+	c.Start(func(msg sharedtypes.TcpMessage) {
+		var line string
+		if msg.Msg == "log" && json.Unmarshal(msg.Data, &line) == nil {
+			fmt.Println(line)
+		}
+	})
+
+	var reply struct {
+		Lines []string `json:"lines"`
+	}
+	if err := c.Request(5*time.Second, "logs", map[string]any{"n": lines, "follow": follow}, &reply); err != nil {
+		return output{}.fail(err)
+	}
+	for _, line := range reply.Lines {
+		fmt.Println(line)
+	}
+	if follow {
+		<-c.Done()
+	}
+	return exitOK
 }

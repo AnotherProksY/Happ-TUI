@@ -121,7 +121,11 @@ func LoadAppConfig() (AppConfig, error) {
 		return currentConfig, fmt.Errorf("marshal default config: %w", err)
 	}
 
-	if err := os.WriteFile(configPath, defaultConfigJSON, 0o644); err != nil {
+	perm := os.FileMode(0o644)
+	if utils.IsServiceMode() {
+		perm = 0o600
+	}
+	if err := os.WriteFile(configPath, defaultConfigJSON, perm); err != nil {
 		return currentConfig, fmt.Errorf("write default config %q: %w", configPath, err)
 	}
 	utils.ChownToInvokingUser(configPath)

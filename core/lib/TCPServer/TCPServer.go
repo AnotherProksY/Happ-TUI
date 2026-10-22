@@ -132,7 +132,7 @@ func (s *Server) handleConnection(c *client) {
 		s.mutex.Unlock()
 	}()
 
-	conn_handler := cmd.Cmd{DB: s.DB, BroadCast: s.BroadCast, Reply: func(msg []byte) { c.write(msg) }, PeerUID: c.uid, AppConfig: s.appConfig}
+	conn_handler := cmd.Cmd{DB: s.DB, BroadCast: s.BroadCast, Reply: c.write, PeerUID: c.uid, AppConfig: s.appConfig}
 	reader := bufio.NewReader(c.conn)
 
 	for {
@@ -295,6 +295,14 @@ func (s *Server) handleConnection(c *client) {
 				continue
 			}
 			go command_handler.Toggle(data, s.proxy_manager)
+
+		case "logs":
+			var data structs.LogsData
+			if err := json.Unmarshal(raw_tcp_message.Data, &data); err != nil {
+				command_handler.ReplyError("bad-request", "invalid body for logs")
+				continue
+			}
+			command_handler.Logs(data)
 
 		case "get-config":
 			command_handler.GetConfig()

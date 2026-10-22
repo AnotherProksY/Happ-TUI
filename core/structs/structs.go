@@ -220,6 +220,17 @@ type SubscriptionUsage struct {
 	Expire int64 `json:"expire"`
 }
 
+// LogsData asks for the last N lines of the core's log; with Follow, new
+// lines are sent as "log" notifications to this client.
+type LogsData struct {
+	N      int  `json:"n"`
+	Follow bool `json:"follow"`
+}
+
+type LogsReply struct {
+	Lines []string `json:"lines"`
+}
+
 // ClientConfig is the part of the config that clients need.
 type ClientConfig struct {
 	SocksPort    int  `json:"socks-port"`

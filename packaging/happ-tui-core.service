@@ -1,0 +1,33 @@
+# Installed by `install.sh --service`; @LIBDIR@ and @USER@ are filled in.
+[Unit]
+Description=Happ-TUI core (Xray client back-end)
+Documentation=https://github.com/AnotherProksY/Happ-TUI
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=@LIBDIR@/happ-tui-core --service --user @USER@
+# removes TUN rules if the core stopped without doing it, so the network
+# doesn't stay sent to a dead tproxy port
+ExecStopPost=@LIBDIR@/happ-tui-core --cleanup
+Restart=on-failure
+RestartSec=2
+
+# config in /etc/happ-tui, groups in /var/lib/happ-tui (both 0700: they
+# hold subscription links), the control socket in /run/happ-tui
+ConfigurationDirectory=happ-tui
+ConfigurationDirectoryMode=0700
+StateDirectory=happ-tui
+StateDirectoryMode=0700
+RuntimeDirectory=happ-tui
+RuntimeDirectoryMode=0755
+UMask=0077
+
+# the core never needs a home directory
+ProtectHome=yes
+PrivateTmp=yes
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=multi-user.target

@@ -16,11 +16,24 @@ const AppName = "happ-tui"
 // project was renamed from bushuray.
 const legacyAppName = "bushuray"
 
+// Service mode keeps everything outside of the user's home: a root process
+// writing there could be tricked through symlinks into touching system files.
+const (
+	ServiceConfigDir = "/etc/happ-tui"
+	ServiceDataDir   = "/var/lib/happ-tui"
+)
+
 func ConfigDir() (string, error) {
+	if IsServiceMode() {
+		return ServiceConfigDir, nil
+	}
 	return homeSubdir(".config", AppName)
 }
 
 func DataDir() (string, error) {
+	if IsServiceMode() {
+		return ServiceDataDir, nil
+	}
 	return homeSubdir(".local", "share", AppName)
 }
 
@@ -124,7 +137,12 @@ func EnsureDir(dir string) error {
 			return err
 		}
 	}
-	if err := os.Mkdir(dir, 0o755); err != nil && !errors.Is(err, fs.ErrExist) {
+	mode := os.FileMode(0o755)
+	if IsServiceMode() {
+		// subscription links are secrets
+		mode = 0o700
+	}
+	if err := os.Mkdir(dir, mode); err != nil && !errors.Is(err, fs.ErrExist) {
 		return err
 	}
 	ChownToInvokingUser(dir)

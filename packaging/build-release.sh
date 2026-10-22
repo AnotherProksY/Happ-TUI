@@ -64,6 +64,7 @@ install -m644 "$WORK/xray/LICENSE" "$STAGE/share/licenses/happ-tui/LICENSE.xray"
 install -m644 "$ROOT/LICENSE" "$STAGE/share/licenses/happ-tui/LICENSE"
 install -m644 "$ROOT/README.md" "$STAGE/README.md"
 install -m755 "$ROOT/packaging/install.sh" "$ROOT/packaging/uninstall.sh" "$STAGE/"
+install -m644 "$ROOT/packaging/happ-tui-core.service" "$LIB/"
 
 ARCHIVE=$ROOT/dist/$NAME-linux-x86_64.tar.gz
 tar -C "$WORK" --owner=0 --group=0 -czf "$ARCHIVE" "$NAME"

@@ -47,6 +47,12 @@ func (p *ProxyManager) beginTunMode() error {
 	return nil
 }
 
+// CleanupTun removes TUN rules and restores rp_filter after a core stopped
+// without doing it, e.g. when it crashed (systemd ExecStopPost).
+func CleanupTun() error {
+	return (&ProxyManager{}).rollbackTunMode()
+}
+
 func (p *ProxyManager) recoverPersistedTunMode() error {
 	// pick up a TUN session bushuray left behind so its rp_filter is restored
 	if !tunStateExists() {

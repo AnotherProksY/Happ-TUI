@@ -11,7 +11,7 @@ import (
 type Cmd struct {
 	BroadCast func([]byte)
 	// Reply writes to the connection the current command came from.
-	Reply     func([]byte)
+	Reply     func([]byte) error
 	RequestId string
 	PeerUID   int
 	DB        *db.DB
