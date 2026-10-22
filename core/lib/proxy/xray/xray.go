@@ -6,8 +6,6 @@ import (
 	"github.com/AnotherProksY/Happ-TUI/core/utils"
 	"log"
 	"os/exec"
-	"os/user"
-	"strconv"
 	"sync"
 	"syscall"
 )
@@ -21,35 +19,9 @@ type XrayCore struct {
 	Exited         chan error
 }
 
-func (x *XrayCore) Start(stdinPipe []byte) error {
-	return x.startWithCredential(stdinPipe, nil)
-}
-
-func (x *XrayCore) StartAsUser(stdinPipe []byte, username string) error {
-	u, err := user.Lookup(username)
-	if err != nil {
-		return fmt.Errorf("failed to lookup user %s: %w", username, err)
-	}
-
-	uid, err := strconv.ParseUint(u.Uid, 10, 32)
-	if err != nil {
-		return fmt.Errorf("invalid uid %s: %w", u.Uid, err)
-	}
-
-	gid, err := strconv.ParseUint(u.Gid, 10, 32)
-	if err != nil {
-		return fmt.Errorf("invalid gid %s: %w", u.Gid, err)
-	}
-
-	cred := &syscall.Credential{
-		Uid: uint32(uid),
-		Gid: uint32(gid),
-	}
-
-	return x.startWithCredential(stdinPipe, cred)
-}
-
-func (x *XrayCore) startWithCredential(stdinPipe []byte, cred *syscall.Credential) error {
+// Start runs xray with config on stdin. A root core runs it as the
+// unprivileged xray user with only caps as ambient capabilities.
+func (x *XrayCore) Start(stdinPipe []byte, caps ...uintptr) error {
 	x.mu.Lock()
 	defer x.mu.Unlock()
 
@@ -66,8 +38,11 @@ func (x *XrayCore) startWithCredential(stdinPipe []byte, cred *syscall.Credentia
 	cmd := exec.CommandContext(ctx, xraybin, "run")
 
 	cmd.SysProcAttr = &syscall.SysProcAttr{
-		Pdeathsig:  syscall.SIGTERM,
-		Credential: cred,
+		Pdeathsig: syscall.SIGTERM,
+	}
+	if err := utils.Unprivileged(cmd, caps...); err != nil {
+		cancel()
+		return err
 	}
 
 	stdin, err := cmd.StdinPipe()

@@ -151,11 +151,18 @@ func (p *ProxyManager) connect(profile structs.Profile, tun_mode bool) error {
 		if err := p.prepareTunMode(); err != nil {
 			return fmt.Errorf("%w: %v", ErrTun, err)
 		}
-		if err := p.xray_core.StartAsUser(xrayConfig, "bxray_tproxy"); err != nil {
+		// NET_ADMIN for IP_TRANSPARENT and socket marks; NET_BIND_SERVICE
+		// because answers to intercepted UDP (DNS on 53, NTP on 123) are
+		// sent from a socket bound to the original, often privileged, port
+		if err := p.xray_core.Start(xrayConfig, utils.CAP_NET_ADMIN, utils.CAP_NET_BIND_SERVICE); err != nil {
 			return fmt.Errorf("%w: %v", ErrXray, err)
 		}
 	} else {
-		if err := p.xray_core.Start(xrayConfig); err != nil {
+		var caps []uintptr
+		if p.appConfig.SocksPort < 1024 || p.appConfig.HttpPort < 1024 {
+			caps = append(caps, utils.CAP_NET_BIND_SERVICE)
+		}
+		if err := p.xray_core.Start(xrayConfig, caps...); err != nil {
 			return fmt.Errorf("%w: %v", ErrXray, err)
 		}
 	}

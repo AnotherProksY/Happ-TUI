@@ -23,6 +23,9 @@ func ParseUri(uri string, socksport int, httpport int, tproxyport int) ([]byte, 
 	}
 
 	v2parser_parse_cmd = exec.Command(v2parserbin, args...)
+	if err := Unprivileged(v2parser_parse_cmd); err != nil {
+		return parsed_config, fmt.Errorf("failed to parse: %w", err)
+	}
 
 	parsed_config, err = v2parser_parse_cmd.Output()
 	if err != nil {

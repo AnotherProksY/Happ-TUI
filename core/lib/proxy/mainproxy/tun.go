@@ -6,16 +6,25 @@ import (
 	"log"
 
 	tunscripts "github.com/AnotherProksY/Happ-TUI/core/lib/proxy/mainproxy/scripts"
+	"github.com/AnotherProksY/Happ-TUI/core/utils"
 )
 
 func (p *ProxyManager) prepareTunMode() error {
-	return tunscripts.GenerateBxrayUser()
+	if err := tunscripts.RemoveLegacyUser(); err != nil {
+		log.Println("failed to remove the legacy bxray_tproxy user:", err)
+	}
+	_, _, err := utils.XrayUserIDs()
+	return err
 }
 
 // enableTun redirects all traffic of the machine to Xray. With hijackDNS,
 // DNS queries leaving the machine are answered by Xray too.
 func (p *ProxyManager) enableTun(hijackDNS bool) error {
 	if err := p.beginTunMode(); err != nil {
+		return err
+	}
+	xrayUID, _, err := utils.XrayUserIDs()
+	if err != nil {
 		return err
 	}
 
@@ -27,8 +36,8 @@ func (p *ProxyManager) enableTun(hijackDNS bool) error {
 	if tunscripts.HasNft() {
 		steps = []tunStep{
 			{name: "generate routing table", run: tunscripts.GenerateRoutingTable},
-			{name: "apply nftables rules", run: func() error { return tunscripts.ApplyNftRules(hijackDNS) }},
-			{name: "block IPv6", run: tunscripts.BlockIPv6},
+			{name: "apply nftables rules", run: func() error { return tunscripts.ApplyNftRules(hijackDNS, xrayUID) }},
+			{name: "block IPv6", run: func() error { return tunscripts.BlockIPv6(xrayUID) }},
 			{name: "loosen rp_filter", run: tunscripts.LoosenRpFilters},
 		}
 	} else {
@@ -37,7 +46,7 @@ func (p *ProxyManager) enableTun(hijackDNS bool) error {
 			{name: "create TProxy chain", run: tunscripts.BypassLocalAndLan},
 			{name: "configure TProxy targets", run: tunscripts.MarkAndForwardPackets},
 			{name: "attach PREROUTING chain", run: tunscripts.ApplyMainRules},
-			{name: "configure OUTPUT routing", run: tunscripts.ProxyGateway},
+			{name: "configure OUTPUT routing", run: func() error { return tunscripts.ProxyGateway(xrayUID) }},
 			{name: "loosen rp_filter", run: tunscripts.LoosenRpFilters},
 		}
 		if hijackDNS {

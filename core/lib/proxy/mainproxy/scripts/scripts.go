@@ -6,37 +6,12 @@ import (
 	"strings"
 )
 
-func GenerateBxrayUser() error {
-	RemoveBxrayUser()
+// RemoveLegacyUser removes bxray_tproxy, the uid 0 alias older versions ran
+// xray as. -f is needed because uid 0 always has running processes.
+func RemoveLegacyUser() error {
 	_, err := runScriptWithSh(`
-set -e
-
-NOLOGIN="$(command -v nologin || true)"
-if [ -z "$NOLOGIN" ]; then
-	for candidate in /usr/sbin/nologin /sbin/nologin; do
-		if [ -x "$candidate" ]; then
-			NOLOGIN="$candidate"
-			break
-		fi
-	done
-fi
-
-if [ -z "$NOLOGIN" ]; then
-	exit 1
-fi
-
-getent group bxray_tproxy_g >/dev/null 2>&1 || groupadd -g 24333 bxray_tproxy_g
-id -u bxray_tproxy >/dev/null 2>&1 || useradd -o -u 0 -g bxray_tproxy_g -d /var/empty -s "$NOLOGIN" -M bxray_tproxy`)
-	return err
-}
-
-func RemoveBxrayUser() error {
-	_, err := runScriptWithSh(`
-set -e
-
-id -u bxray_tproxy >/dev/null 2>&1 && userdel bxray_tproxy || true
-getent group bxray_tproxy_g >/dev/null 2>&1 && groupdel bxray_tproxy_g || true
-getent group 24333 >/dev/null 2>&1 && groupdel "$(getent group 24333 | cut -d: -f1)" || true`)
+id -u bxray_tproxy >/dev/null 2>&1 && userdel -f bxray_tproxy || true
+getent group bxray_tproxy_g >/dev/null 2>&1 && groupdel bxray_tproxy_g || true`)
 	return err
 }
 
@@ -87,7 +62,7 @@ iptables -t mangle -A PREROUTING -j BXRAY`
 	return err
 }
 
-func ProxyGateway() error {
+func ProxyGateway(xrayUID uint32) error {
 	local_subnets, err := runScriptWithSh(`
 		ip address | grep -w inet | awk '{print $2}'
 	`)
@@ -99,7 +74,7 @@ func ProxyGateway() error {
 	script := []string{
 		"set -e",
 		"iptables -t mangle -N BXRAY_MASK",
-		"iptables -t mangle -A BXRAY_MASK -m owner --gid-owner 24333 -j RETURN",
+		fmt.Sprintf("iptables -t mangle -A BXRAY_MASK -m owner --uid-owner %d -j RETURN", xrayUID),
 	}
 
 	for _, subnet := range subnets {
@@ -148,7 +123,7 @@ sysctl -w net.ipv4.conf.default.rp_filter=2
 }
 
 func CleanUp() error {
-	RemoveBxrayUser()
+	RemoveLegacyUser()
 	nftErr := RemoveNftRules()
 	// iptables rules are only left by the fallback path or older versions;
 	// iptables may be missing, so its absence is not an error here

@@ -49,10 +49,11 @@ func HasNft() bool {
 }
 
 // ApplyNftRules sends all TCP/UDP traffic of this machine (and of clients that
-// use it as a gateway) to the Xray tproxy inbound, except Xray's own traffic,
+// use it as a gateway) to the Xray tproxy inbound, except Xray's own traffic
+// (told apart by xrayUID, so it doesn't loop back into Xray),
 // tailscale's traffic and local destinations. When hijackDNS is false, DNS
 // bypasses Xray like with the iptables rules.
-func ApplyNftRules(hijackDNS bool) error {
+func ApplyNftRules(hijackDNS bool, xrayUID uint32) error {
 	local_subnets, err := runScriptWithSh(`
 		ip address | grep -w inet | awk '{print $2}'
 	`)
@@ -98,7 +99,7 @@ table ip %[1]s {
 
 	chain output {
 		type route hook output priority mangle; policy accept;
-		meta skgid 24333 return
+		meta skuid %[7]d return
 		%[6]s return
 		%[4]s
 		ip daddr @bypass return
@@ -106,14 +107,14 @@ table ip %[1]s {
 	}
 }
 `, NftTable, strings.Join(bypass, ", "), prerouting_dns, output_dns,
-		strings.Join(noDNSHijackSubnets, ", "), tailscaleMark)
+		strings.Join(noDNSHijackSubnets, ", "), tailscaleMark, xrayUID)
 
 	return runNft(script)
 }
 
 // BlockIPv6 rejects IPv6 traffic that would leave the machine past Xray.
 // Rejecting rather than dropping makes applications fall back to IPv4 at once.
-func BlockIPv6() error {
+func BlockIPv6(xrayUID uint32) error {
 	script := fmt.Sprintf(`
 add table ip6 %[1]s
 delete table ip6 %[1]s
@@ -127,7 +128,7 @@ table ip6 %[1]s {
 	chain output {
 		type filter hook output priority filter; policy accept;
 		oifname "lo" accept
-		meta skgid 24333 accept
+		meta skuid %[4]d accept
 		%[3]s accept
 		ip6 daddr @allowed accept
 		meta l4proto tcp counter reject with tcp reset
@@ -141,7 +142,7 @@ table ip6 %[1]s {
 		counter reject with icmpv6 type admin-prohibited
 	}
 }
-`, NftTable, strings.Join(ipv6Allowed, ", "), tailscaleMark)
+`, NftTable, strings.Join(ipv6Allowed, ", "), tailscaleMark, xrayUID)
 	return runNft(script)
 }
 

@@ -22,9 +22,17 @@ func IsXrayJSON(uri string) bool {
 // http or tproxy inbound.
 func ProfileConfig(profile structs.Profile, socksPort int, httpPort int, tproxyPort int) ([]byte, error) {
 	if IsXrayJSON(profile.Uri) {
-		return FromXrayJSON([]byte(profile.Uri), socksPort, httpPort, tproxyPort)
+		sanitized, err := Sanitize([]byte(profile.Uri))
+		if err != nil {
+			return nil, err
+		}
+		return FromXrayJSON(sanitized, socksPort, httpPort, tproxyPort)
 	}
-	return utils.ParseUri(profile.Uri, socksPort, httpPort, tproxyPort)
+	parsed, err := utils.ParseUri(profile.Uri, socksPort, httpPort, tproxyPort)
+	if err != nil {
+		return nil, err
+	}
+	return Sanitize(parsed)
 }
 
 // FromXrayJSON keeps the provider's outbounds, routing and dns but replaces
